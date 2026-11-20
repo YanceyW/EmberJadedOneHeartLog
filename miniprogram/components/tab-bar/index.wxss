@@ -1,0 +1,36 @@
+.bar {
+  position: fixed;
+  left: 16rpx;
+  right: 16rpx;
+  bottom: 16rpx;
+  display: flex;
+  background: #fffaf8;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 28rpx rgba(227, 154, 168, 0.18);
+  padding: 10rpx;
+  padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
+  z-index: 4;
+}
+
+.item {
+  flex: 1;
+  text-align: center;
+  line-height: 72rpx;
+  color: #a08b84;
+  font-size: 28rpx;
+}
+
+.pill {
+  display: inline-block;
+  min-width: 120rpx;
+  border-radius: 999rpx;
+}
+
+.item.on {
+  color: #8a3d48;
+  font-weight: 600;
+}
+
+.item.on .pill {
+  background: #f8d5dc;
+}

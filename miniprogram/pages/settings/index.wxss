@@ -1,0 +1,19 @@
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.status {
+  color: #8a7e78;
+  flex-shrink: 0;
+}
+
+.status.on {
+  color: #6b8f71;
+}
+
+.note {
+  padding: 0 8rpx;
+}

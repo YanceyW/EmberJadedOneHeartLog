@@ -1,0 +1,177 @@
+.head, .row, .filters {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+
+.small {
+  width: 140rpx;
+  line-height: 64rpx;
+}
+
+.hint, .swipe {
+  margin: 8rpx 0 16rpx;
+}
+
+.week, .grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.week view, .cell {
+  width: 14.28%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.week view {
+  color: #8a7e78;
+  padding-bottom: 8rpx;
+}
+
+.cell {
+  min-height: 92rpx;
+  padding-top: 8rpx;
+}
+
+.daynum {
+  width: 52rpx;
+  height: 52rpx;
+  line-height: 52rpx;
+  margin: 0 auto;
+  border-radius: 50%;
+}
+
+.cell.today .daynum {
+  background: #f8d5dc;
+  color: #5c463f;
+  font-weight: 600;
+}
+
+.month-in {
+  animation: monthfade 0.28s ease;
+}
+
+@keyframes monthfade {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.icons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4rpx;
+  min-height: 20rpx;
+}
+
+.dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+}
+
+.heart {
+  width: 12rpx;
+  height: 12rpx;
+  background: #e9899a;
+  transform: rotate(-45deg);
+  position: relative;
+  margin: 4rpx 4rpx 0;
+}
+
+.heart::before,
+.heart::after {
+  content: "";
+  position: absolute;
+  width: 12rpx;
+  height: 12rpx;
+  background: #e9899a;
+  border-radius: 50%;
+}
+
+.heart::before {
+  top: -6rpx;
+  left: 0;
+}
+
+.heart::after {
+  left: 6rpx;
+  top: 0;
+}
+
+.heart.predicted,
+.heart.predicted::before,
+.heart.predicted::after {
+  background: #f3c3cb;
+}
+
+.dot.ovulation { background: #d4a017; }
+.dot.fertile { background: #efd48a; }
+.dot.anniversary { background: #6b8f71; }
+.dot.schedule { background: #6d8caf; }
+
+.more {
+  font-size: 18rpx;
+  color: #8a7e78;
+}
+
+.chip {
+  background: #f3e6e4;
+  color: #8a3d48;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+}
+
+.chip.on {
+  background: #e9899a;
+  color: #fff;
+}
+
+.item {
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0e6e1;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(92, 70, 63, 0.28);
+  display: flex;
+  align-items: flex-end;
+  z-index: 10;
+  animation: maskin 0.25s ease;
+}
+
+.sheet {
+  width: 100%;
+  background: #fffaf8;
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 28rpx 28rpx 48rpx;
+  max-height: 80vh;
+  overflow: auto;
+  animation: slideup 0.32s ease;
+}
+
+@keyframes maskin {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideup {
+  from { transform: translateY(48rpx); }
+  to { transform: translateY(0); }
+}
+
+.sheet .btn, .sheet .label {
+  margin-top: 16rpx;
+}

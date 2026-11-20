@@ -1,0 +1,82 @@
+.hello {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.mini-heart {
+  width: 28rpx;
+  height: 28rpx;
+  background: #e9899a;
+  transform: rotate(-45deg);
+  position: relative;
+  flex-shrink: 0;
+  animation: heart-pop 0.35s ease;
+}
+
+.mini-heart.still {
+  animation: none;
+  margin-top: 8rpx;
+}
+
+.mini-heart::before,
+.mini-heart::after {
+  content: "";
+  position: absolute;
+  width: 28rpx;
+  height: 28rpx;
+  background: #e9899a;
+  border-radius: 50%;
+}
+
+.mini-heart::before {
+  top: -14rpx;
+  left: 0;
+}
+
+.mini-heart::after {
+  left: 14rpx;
+  top: 0;
+}
+
+.weather .temp {
+  font-size: 72rpx;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #5c463f;
+}
+
+.remind {
+  display: flex;
+  gap: 20rpx;
+  align-items: flex-start;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.entry {
+  width: calc(50% - 8rpx);
+  background: #fffaf8;
+  border-radius: 28rpx;
+  padding: 28rpx;
+  box-sizing: border-box;
+  box-shadow: 0 8rpx 28rpx rgba(227, 154, 168, 0.12);
+  transition: transform 0.2s ease;
+}
+
+.locate {
+  margin-top: 20rpx;
+  background: #e9899a;
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+}
+
+.locate::after {
+  border: none;
+}

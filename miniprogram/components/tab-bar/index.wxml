@@ -1,0 +1,5 @@
+<view class="bar">
+  <view class="item {{current === 'home' ? 'on' : ''}}" data-name="home" data-url="/pages/home/index" bindtap="go"><text class="pill">首页</text></view>
+  <view class="item {{current === 'calendar' ? 'on' : ''}}" data-name="calendar" data-url="/pages/calendar/index" bindtap="go"><text class="pill">日历</text></view>
+  <view class="item {{current === 'mine' ? 'on' : ''}}" data-name="mine" data-url="/pages/mine/index" bindtap="go"><text class="pill">我的</text></view>
+</view>
