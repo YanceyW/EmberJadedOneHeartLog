@@ -1,0 +1,141 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.page {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16rpx 32rpx 280rpx;
+}
+
+.card {
+  background: rgba(255, 250, 248, 0.82);
+  border-radius: 32rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+}
+
+.section-title,
+.name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #5c463f;
+}
+
+.kind,
+.muted,
+.label {
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.label {
+  margin-top: 16rpx;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.chip {
+  background: #f8d5dc;
+  color: #8a3d48;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+}
+
+.chip.on {
+  background: #e9899a;
+  color: #fff;
+}
+
+.empty {
+  margin: 12rpx 8rpx;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 80;
+  background: rgba(92, 70, 63, 0.28);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: #fffaf8;
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 28rpx 28rpx calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.detail-head,
+.date-line {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.detail-head {
+  justify-content: space-between;
+}
+
+.date-line input {
+  flex: 1;
+}
+
+.tool.danger {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  background: #e9899a;
+  color: #fff;
+}
+
+.btn {
+  margin-top: 20rpx;
+  background: #e9899a;
+  color: #fff;
+  border-radius: 999rpx;
+  line-height: 80rpx;
+  text-align: center;
+}
+
+.picker {
+  margin-top: 12rpx;
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+}
+
+.cal {
+  width: 64rpx;
+  height: 64rpx;
+  border: 3rpx solid #e9899a;
+  border-radius: 12rpx;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.cal::before {
+  content: "";
+  position: absolute;
+  left: 8rpx;
+  right: 8rpx;
+  top: 16rpx;
+  bottom: 8rpx;
+  border-top: 3rpx solid #e9899a;
+}

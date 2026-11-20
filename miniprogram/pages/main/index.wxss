@@ -1,0 +1,180 @@
+.deck {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  width: 100%;
+}
+
+.sky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sky .drop,
+.sky .cap,
+.sky .cloud,
+.sky .leaf,
+.sky .gust,
+.sky .glow {
+  display: none;
+}
+
+.sky.sun .glow {
+  display: block;
+  position: absolute;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 50%;
+  left: 8%;
+  top: 8%;
+  background: rgba(240, 193, 74, 0.35);
+  animation: glow 6s ease-in-out infinite;
+}
+
+.sky.cloud .cloud,
+.sky.fog .cloud {
+  display: block;
+  position: absolute;
+  left: -30vw;
+  border-radius: 40rpx;
+  background: rgba(176, 166, 162, 0.9);
+  box-shadow: 18rpx 10rpx 0 rgba(196, 186, 182, 0.85);
+  animation-name: drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.sky.rain .drop,
+.sky.storm .drop,
+.sky.snow .drop,
+.sky.heavy .drop {
+  display: block;
+  position: absolute;
+  top: -40rpx;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.sky.rain .drop,
+.sky.storm .drop,
+.sky.heavy .drop {
+  background: rgba(70, 120, 158, 0.8);
+  animation-name: rain-fall;
+}
+
+.sky.snow .drop {
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  animation-name: snow-fall;
+}
+
+.sky.snow .cap {
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22rpx;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.sky.fog::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(236, 232, 228, 0.55);
+}
+
+.sky.storm::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.28);
+  opacity: 0;
+  animation: flash 8s linear infinite;
+}
+
+.sky.windy .leaf {
+  display: block;
+  position: absolute;
+  left: -12vw;
+  border-radius: 0 80% 0 80%;
+  animation-name: blow;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.sky.windy .gust {
+  display: block;
+  position: absolute;
+  left: -24vw;
+  box-sizing: border-box;
+  background: transparent;
+  border-top: 4rpx solid rgba(112, 126, 140, 0.78);
+  border-radius: 50%;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent);
+  animation-name: gust-pass;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes rain-fall {
+  from { transform: translate3d(0, -10vh, 0) rotate(var(--tilt)); }
+  to { transform: translate3d(var(--drift), 115vh, 0) rotate(var(--tilt)); }
+}
+
+@keyframes snow-fall {
+  0% { transform: translate3d(0, -8vh, 0); }
+  50% { transform: translate3d(var(--sway), 52vh, 0); }
+  100% { transform: translate3d(var(--drift), 115vh, 0); }
+}
+
+@keyframes drift {
+  from { transform: translateX(-30vw); }
+  to { transform: translateX(110vw); }
+}
+
+@keyframes blow {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to { transform: translate3d(120vw, var(--drop), 0) rotate(var(--spin)); }
+}
+
+@keyframes gust-pass {
+  0% { transform: translate3d(0, 0, 0) rotate(var(--tilt)); opacity: 0; }
+  14% { opacity: 0.9; }
+  86% { opacity: 0.9; }
+  100% { transform: translate3d(130vw, var(--lift), 0) rotate(var(--tilt)); opacity: 0; }
+}
+
+@keyframes glow {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes flash {
+  0%, 92%, 100% { opacity: 0; }
+  93% { opacity: 1; }
+  95% { opacity: 0; }
+}
+
+.slide,
+.fill {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}

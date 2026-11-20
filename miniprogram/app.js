@@ -35,7 +35,11 @@ App({
       return result;
     } catch (error) {
       console.error("云函数调用失败", action, error);
-      return { ok: false, message: "云函数还没部署，或网络不可用" };
+      const detail = String((error && (error.errMsg || error.message)) || error || "");
+      const message = /timeout|Failed to fetch|404012/i.test(detail)
+        ? "网络超时，请再试一次"
+        : "云函数还没部署，或网络不可用";
+      return { ok: false, message };
     }
   },
 

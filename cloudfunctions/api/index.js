@@ -1,11 +1,15 @@
-// 一心日志唯一的云函数。小程序不直接读写数据库。
+// 炎都拾光唯一的云函数。小程序不直接读写数据库。
 const cloud = require("wx-server-sdk");
 const https = require("https");
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
-const COLLECTIONS = ["users", "periods", "anniversaries", "schedules"];
+const COLLECTIONS = ["users", "periods", "anniversaries", "birthdays", "schedules", "readings", "asks", "almanacs"];
+const MALE_ROLES = ["男友", "未婚夫", "丈夫"];
+const FEMALE_ROLES = ["女友", "未婚妻", "妻子"];
+const PARTNER_ROLES = MALE_ROLES.concat(FEMALE_ROLES);
+const PROMPT_VERSION = 2;
 
 exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext();
@@ -39,8 +43,20 @@ exports.main = async (event) => {
         return await saveSchedule(OPENID, event);
       case "deleteSchedule":
         return await deleteSchedule(OPENID, event.id);
+      case "saveBirthday":
+        return await saveBirthday(OPENID, event);
+      case "deleteBirthday":
+        return await deleteBirthday(OPENID, event.id);
       case "weather":
-        return await weather(event.latitude, event.longitude);
+        return await weather(event);
+      case "dailyReading":
+        return await dailyReading(OPENID, event);
+      case "almanac":
+        return await almanac(event.date);
+      case "listAsks":
+        return await listAsks(OPENID);
+      case "ask":
+        return await ask(OPENID, event.question);
       default:
         return { ok: false, message: "未知操作" };
     }
@@ -99,6 +115,12 @@ function publicUser(user) {
     cycleLength: user.cycleLength || 28,
     periodLength: user.periodLength || 5,
     chosenOpenid: user.chosenOpenid || "",
+    partnerTitle: user.partnerTitle || "",
+    periodRemind: user.periodRemind === true,
+    birthCalendar: user.birthCalendar || "",
+    birthDate: user.birthDate || "",
+    birthHour: user.birthHour || "",
+    birthPlace: user.birthPlace || "",
   };
 }
 
@@ -127,12 +149,15 @@ async function session(openid) {
   return {
     ok: true,
     user: publicUser(user),
-    partner: partner ? publicUser(partner) : null,
+    partner: partner
+      ? Object.assign(publicUser(partner), { birthCalendar: "", birthDate: "", birthHour: "", birthPlace: "" })
+      : null,
     mutual,
     canEditPeriod: access.canEdit,
     periodOwnerOpenid: access.ownerOpenid,
     periods,
     anniversaries: await visibleItems("anniversaries", openid, partner, mutual),
+    birthdays: await visibleItems("birthdays", openid, partner, mutual),
     schedules: await visibleItems("schedules", openid, partner, mutual),
   };
 }
@@ -167,6 +192,50 @@ function clampNumber(value, min, max, fallback) {
   return Math.min(max, Math.max(min, Math.round(number)));
 }
 
+function cleanBirthDate(calendar, value) {
+  const text = String(value || "");
+  if (calendar === "lunar") {
+    return /^\d{4}-L?(0[1-9]|1[0-2])-(0[1-9]|[12]\d|30)$/.test(text) ? text : "";
+  }
+  return /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(text) ? text : "";
+}
+
+function cleanBirthHour(value) {
+  const text = String(value || "").trim();
+  if (/^(子|丑|寅|卯|辰|巳|午|未|申|酉|戌|亥)时 \d{2}:\d{2}-\d{2}:\d{2}$/.test(text)) {
+    return text;
+  }
+  if (/^(子|丑|寅|卯|辰|巳|午|未|申|酉|戌|亥)时 ([01]\d|2[0-3]):[0-5]\d$/.test(text)) {
+    return text;
+  }
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(text)) {
+    return text;
+  }
+  if (/^(子|丑|寅|卯|辰|巳|午|未|申|酉|戌|亥)时$/.test(text)) {
+    return text;
+  }
+  return "";
+}
+
+function formatLunarText(code) {
+  const months = ["正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"];
+  const days = ["初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十", "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"];
+  const matched = /^(\d{4})-(L)?(\d{2})-(\d{2})$/.exec(code || "");
+  if (!matched) {
+    return "未知";
+  }
+  const month = Number(matched[3]);
+  const day = Number(matched[4]);
+  return `${matched[1]}年${matched[2] ? "闰" : ""}${months[month - 1]}月${days[day - 1]}`;
+}
+
+function describeBirth(user) {
+  const time = user.birthHour || "未知";
+  const place = user.birthPlace || "未知";
+  const date = user.birthCalendar === "lunar" ? `农历${formatLunarText(user.birthDate)}` : `阳历${user.birthDate}`;
+  return `${date}，出生时间${time}，出生地${place}`;
+}
+
 async function saveProfile(openid, event) {
   const user = await ensureUser(openid);
   const gender = event.gender === "female" || event.gender === "male" ? event.gender : "";
@@ -180,6 +249,17 @@ async function saveProfile(openid, event) {
     data.cycleLength = clampNumber(event.cycleLength, 15, 60, user.cycleLength || 28);
     data.periodLength = clampNumber(event.periodLength, 1, 15, user.periodLength || 5);
   }
+  data.birthCalendar = event.birthCalendar === "lunar" ? "lunar" : "solar";
+  data.birthDate = cleanBirthDate(data.birthCalendar, event.birthDate);
+  data.birthHour = cleanBirthHour(event.birthHour);
+  data.birthPlace = String(event.birthPlace || "").trim().slice(0, 80);
+  const partner = user.chosenOpenid ? await findUser(user.chosenOpenid) : null;
+  const mutual = isMutual({ ...user, gender }, partner);
+  data.periodRemind = event.periodRemind === true;
+  if (gender === "male" && data.periodRemind && !mutual) {
+    data.periodRemind = false;
+  }
+  data.partnerTitle = user.chosenOpenid ? cleanPartnerTitle(event.partnerTitle, partner) : "";
   await db.collection("users").doc(user._id).update({ data });
   return session(openid);
 }
@@ -234,7 +314,7 @@ async function choosePartner(openid, targetOpenid) {
 async function clearPartner(openid) {
   const user = await ensureUser(openid);
   await db.collection("users").doc(user._id).update({
-    data: { chosenOpenid: "", updatedAt: Date.now() },
+    data: { chosenOpenid: "", partnerTitle: "", updatedAt: Date.now() },
   });
   return session(openid);
 }
@@ -386,6 +466,7 @@ async function saveAnniversary(openid, event) {
   await ensureUser(openid);
   const month = clampNumber(event.month, 1, 12, 0);
   const day = clampNumber(event.day, 1, 31, 0);
+  const year = clampNumber(event.year, 1900, 2100, 0);
   if (!month || !day) {
     throw new Error("请填写月和日");
   }
@@ -398,6 +479,7 @@ async function saveAnniversary(openid, event) {
     title,
     month,
     day,
+    year: year || 0,
     yearly: event.yearly !== false,
     visibility: readVisibility(event.visibility),
     updatedAt: Date.now(),
@@ -429,6 +511,7 @@ async function saveSchedule(openid, event) {
     date: parseDate(event.date),
     note: String(event.note || "").trim().slice(0, 100),
     visibility: readVisibility(event.visibility),
+    remind: ["dayBefore", "sameDay", "none"].includes(event.remind) ? event.remind : "dayBefore",
     updatedAt: Date.now(),
   };
   if (event.id) {
@@ -443,6 +526,59 @@ async function saveSchedule(openid, event) {
 async function deleteSchedule(openid, id) {
   await assertOwner("schedules", id, openid);
   await db.collection("schedules").doc(id).remove();
+  return session(openid);
+}
+
+function cleanPartnerTitle(title, partner) {
+  const value = String(title || "");
+  if (!PARTNER_ROLES.includes(value)) {
+    return "";
+  }
+  if (partner && partner.gender === "male" && !MALE_ROLES.includes(value)) {
+    return "";
+  }
+  if (partner && partner.gender === "female" && !FEMALE_ROLES.includes(value)) {
+    return "";
+  }
+  return value;
+}
+
+async function saveBirthday(openid, event) {
+  await ensureUser(openid);
+  const calendar = event.calendar === "lunar" ? "lunar" : "solar";
+  const month = clampNumber(event.month, 1, 12, 0);
+  const day = clampNumber(event.day, 1, calendar === "lunar" ? 30 : 31, 0);
+  const year = clampNumber(event.year, 1900, 2100, 0);
+  if (!year || !month || !day) {
+    throw new Error("请填写出生年份和日期");
+  }
+  const title = String(event.title || "").trim().slice(0, 30);
+  if (!title) {
+    throw new Error("请填写是谁的生日");
+  }
+  const data = {
+    creatorOpenid: openid,
+    title,
+    calendar,
+    year,
+    month,
+    day,
+    leap: calendar === "lunar" && event.leap === true,
+    visibility: readVisibility(event.visibility),
+    updatedAt: Date.now(),
+  };
+  if (event.id) {
+    await assertOwner("birthdays", event.id, openid);
+    await db.collection("birthdays").doc(event.id).update({ data });
+  } else {
+    await db.collection("birthdays").add({ data: { ...data, createdAt: Date.now() } });
+  }
+  return session(openid);
+}
+
+async function deleteBirthday(openid, id) {
+  await assertOwner("birthdays", id, openid);
+  await db.collection("birthdays").doc(id).remove();
   return session(openid);
 }
 
@@ -494,6 +630,31 @@ function weatherText(code) {
   return "天气变化";
 }
 
+function weatherKind(code) {
+  if (code >= 95) return "storm";
+  if (code === 0) return "sun";
+  if (code <= 3) return "cloud";
+  if (code <= 48) return "fog";
+  if (code <= 77 || code === 85 || code === 86) return "snow";
+  if (code <= 82) return "rain";
+  return "cloud";
+}
+
+async function cityFromCoords(lat, lng) {
+  try {
+    const data = await httpGet(
+      "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" +
+        encodeURIComponent(lat) +
+        "&longitude=" +
+        encodeURIComponent(lng) +
+        "&localityLanguage=zh"
+    );
+    return data.city || data.locality || data.principalSubdivision || "当前位置";
+  } catch (error) {
+    return "当前位置";
+  }
+}
+
 function clothing(temp) {
   if (temp >= 28) return "适合短袖";
   if (temp >= 22) return "可以穿薄外套";
@@ -502,29 +663,327 @@ function clothing(temp) {
   return "注意保暖";
 }
 
-/** 小程序不直接访问外网。经纬度只用来查天气，不写入数据库。 */
-async function weather(latitude, longitude) {
-  const lat = Number(latitude);
-  const lng = Number(longitude);
+async function geocodePlace(place) {
+  const parts = String(place || "").split(/\s+/).filter(Boolean);
+  const names = [parts[1], parts[2], parts[0], place.replace(/\s+/g, "")].filter(Boolean);
+  for (let index = 0; index < names.length; index += 1) {
+    const data = await httpGet(
+      "https://geocoding-api.open-meteo.com/v1/search?name=" +
+        encodeURIComponent(names[index]) +
+        "&count=1&language=zh&countryCode=CN"
+    );
+    if (data.results && data.results[0]) {
+      return data.results[0];
+    }
+  }
+  throw new Error("没有找到这个城市");
+}
+
+/** 小程序不直接访问外网。坐标只用来查天气，不写入数据库。 */
+async function weather(event) {
+  let lat = Number(event.latitude);
+  let lng = Number(event.longitude);
+  let place = String(event.place || "").trim();
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    throw new Error("没有拿到位置");
+    if (!place) {
+      throw new Error("没有拿到位置");
+    }
+    const found = await geocodePlace(place);
+    lat = found.latitude;
+    lng = found.longitude;
+    const parts = place.split(/\s+/).filter(Boolean);
+    place = parts[1] || parts[0] || place;
+  } else {
+    place = await cityFromCoords(lat, lng);
   }
   const url =
     "https://api.open-meteo.com/v1/forecast?latitude=" +
     encodeURIComponent(lat) +
     "&longitude=" +
     encodeURIComponent(lng) +
-    "&current=temperature_2m,weather_code&timezone=Asia%2FShanghai";
+    "&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=Asia%2FShanghai";
   const data = await httpGet(url);
   const current = data.current || {};
+  const daily = data.daily || {};
   const temp = Math.round(Number(current.temperature_2m));
+  const tempMax = Math.round(Number(daily.temperature_2m_max && daily.temperature_2m_max[0]));
+  const tempMin = Math.round(Number(daily.temperature_2m_min && daily.temperature_2m_min[0]));
+  const code = Number(current.weather_code);
+  const wind = Number(current.wind_speed_10m);
   if (!Number.isFinite(temp)) {
     throw new Error("天气数据不完整");
   }
   return {
     ok: true,
     temp,
-    text: weatherText(Number(current.weather_code)),
+    tempMax: Number.isFinite(tempMax) ? tempMax : temp,
+    tempMin: Number.isFinite(tempMin) ? tempMin : temp,
+    text: weatherText(code),
+    kind: weatherKind(code),
+    windy: Number.isFinite(wind) && wind >= 8,
+    heavy: code >= 63 && code <= 67,
+    place,
     clothing: clothing(temp),
   };
+}
+
+function todayShanghai() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function periodBrief(periods, cycleLength, periodLength) {
+  if (!periods || !periods.length) {
+    return "没有经期记录";
+  }
+  const starts = periods.map((item) => item.startDate).filter(Boolean).sort();
+  return `最近一次经期开始于 ${starts[starts.length - 1]}，周期约 ${cycleLength} 天，经期约 ${periodLength} 天。近期开始日：${starts.slice(-6).join("、")}`;
+}
+
+function postJson(url, headers, body) {
+  const data = JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    const request = https.request(
+      url,
+      {
+        method: "POST",
+        headers: Object.assign({ "Content-Length": Buffer.byteLength(data) }, headers),
+      },
+      (res) => {
+        let raw = "";
+        res.on("data", (chunk) => {
+          raw += chunk;
+        });
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(raw));
+          } catch (error) {
+            reject(new Error("AI 返回无法解析"));
+          }
+        });
+      }
+    );
+    request.setTimeout(20000, () => {
+      request.destroy();
+      reject(new Error("AI 服务超时"));
+    });
+    request.on("error", () => reject(new Error("AI 服务暂时不可用")));
+    request.write(data);
+    request.end();
+  });
+}
+
+function parseAiJson(text) {
+  const cleaned = String(text || "").replace(/```json|```/g, "").trim();
+  const parsed = JSON.parse(cleaned);
+  const score = Math.max(0, Math.min(100, Math.round(Number(parsed.score) || 0)));
+  const lines = Array.isArray(parsed.lines) ? parsed.lines.map((item) => String(item).trim()).filter(Boolean).slice(0, 6) : [];
+  if (!lines.length) {
+    throw new Error("AI 没有给出可用的话");
+  }
+  const brief = String(parsed.brief || "").trim().slice(0, 80);
+  return { score, lines, brief };
+}
+
+function deepSeekKey() {
+  if (process.env.DEEPSEEK_API_KEY) {
+    return process.env.DEEPSEEK_API_KEY;
+  }
+  try {
+    return require("./secret").DEEPSEEK_API_KEY || "";
+  } catch (error) {
+    return "";
+  }
+}
+
+async function callDeepSeek(prompt) {
+  const key = deepSeekKey();
+  if (!key) {
+    throw new Error("还没有配置 AI 密钥");
+  }
+  const result = await postJson(
+    "https://api.deepseek.com/chat/completions",
+    {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    {
+      model: "deepseek-chat",
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: "你是炎都拾光里的生活助手。综合五行、星座、八字和紫微斗数，用温和的中文说话。不要写成医疗建议或命运定论。不要在正文里写出出生年月日、时辰或出生地。只输出 JSON，不要加别的文字。",
+        },
+        { role: "user", content: prompt },
+      ],
+    }
+  );
+  const text = result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content;
+  return parseAiJson(text);
+}
+
+async function readingContext(openid) {
+  const user = await ensureUser(openid);
+  if (!user.birthDate) {
+    return null;
+  }
+  const partner = user.chosenOpenid ? await findUser(user.chosenOpenid) : null;
+  const mutual = isMutual(user, partner);
+  const access = periodAccess(user, partner);
+  const periods = access.visible ? await listByOwner("periods", access.ownerOpenid) : [];
+  const owner = access.ownerOpenid === user.openid ? user : partner;
+  return { user, partner, mutual, periods, owner };
+}
+
+async function dailyReading(openid, event) {
+  const context = await readingContext(openid);
+  if (!context) {
+    return { ok: true, skipped: true };
+  }
+  const date = todayShanghai();
+  const weatherSource = String((event && event.weatherSource) || "").trim().slice(0, 40);
+  const weatherLine = String((event && event.weather) || "").trim().slice(0, 80);
+  const cached = await db.collection("readings").where({
+    openid,
+    date,
+    promptVersion: PROMPT_VERSION,
+    weatherSource,
+  }).limit(1).get();
+  if (cached.data[0]) {
+    return {
+      ok: true,
+      score: cached.data[0].score,
+      lines: cached.data[0].lines,
+      brief: cached.data[0].brief || "",
+      date,
+    };
+  }
+  const { user, partner, mutual, periods, owner } = context;
+  let periodText = "这次不涉及经期。";
+  if (owner && owner.gender === "female") {
+    periodText = periodBrief(periods, owner.cycleLength || 28, owner.periodLength || 5);
+  }
+  const partnerText = mutual && partner && partner.birthDate
+    ? `对象：${describeBirth(partner)}。`
+    : "没有对象的生日资料。";
+  const parsed = await callDeepSeek(
+    `请为今天（${date}）写一段综合建议。综合五行、星座、八字和紫微斗数，再参考天气和经期。请用昵称「${user.nickName || "你"}」称呼对方。不要在正文写出出生年月日、时辰或出生地。本人：${describeBirth(user)}，性别${user.gender === "female" ? "女" : user.gender === "male" ? "男" : "未填"}。天气：${weatherLine || "未知"}。${partnerText}经期资料：${periodText}。输出 JSON：{"score":0到100的整数,"lines":["问候","今日提示","照顾建议","另一条建议"],"brief":"给日历用的一两句短建议，也用这个昵称"}。lines 一共 3 到 4 句。如果有经期资料，照顾建议要具体一点，但不要写成诊断。`
+  );
+  await db.collection("readings").add({
+    data: {
+      openid,
+      date,
+      promptVersion: PROMPT_VERSION,
+      weatherSource,
+      score: parsed.score,
+      lines: parsed.lines,
+      brief: parsed.brief,
+      createdAt: Date.now(),
+    },
+  });
+  return { ok: true, score: parsed.score, lines: parsed.lines, brief: parsed.brief, date };
+}
+
+async function almanac(date) {
+  const day = String(date || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    throw new Error("日期不对");
+  }
+  const cached = await db.collection("almanacs").where({ date: day }).limit(1).get();
+  if (cached.data[0]) {
+    return { ok: true, yi: cached.data[0].yi, ji: cached.data[0].ji, note: cached.data[0].note || "" };
+  }
+  const key = deepSeekKey();
+  if (!key) {
+    throw new Error("还没有配置 AI 密钥");
+  }
+  const result = await postJson(
+    "https://api.deepseek.com/chat/completions",
+    { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    {
+      model: "deepseek-chat",
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: "你按传统黄历给出某一天的宜和忌。只输出 JSON。不要写成医疗建议或命运定论。" },
+        { role: "user", content: `公历 ${day} 的黄历。输出 {"yi":"用顿号分开，不超过8项","ji":"用顿号分开，不超过8项","note":"一句说明，并写仅供参考"}` },
+      ],
+    }
+  );
+  const text = result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content;
+  const parsed = JSON.parse(String(text || "").replace(/```json|```/g, "").trim());
+  const yi = String(parsed.yi || "").trim().slice(0, 80);
+  const ji = String(parsed.ji || "").trim().slice(0, 80);
+  const note = String(parsed.note || "仅供参考").trim().slice(0, 80);
+  if (!yi || !ji) {
+    throw new Error("没有整理出这一天的宜忌");
+  }
+  await db.collection("almanacs").add({ data: { date: day, yi, ji, note, createdAt: Date.now() } });
+  return { ok: true, yi, ji, note };
+}
+
+async function listAsks(openid) {
+  const date = todayShanghai();
+  const found = await db.collection("asks").where({ openid, date }).limit(20).get();
+  const items = found.data.slice().sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
+  return {
+    ok: true,
+    items: items.map((item) => ({ question: item.question, answer: item.answer })),
+    remaining: Math.max(0, 10 - items.length),
+  };
+}
+
+async function ask(openid, question) {
+  const text = String(question || "").trim().slice(0, 200);
+  if (!text) {
+    throw new Error("请输入问题");
+  }
+  const context = await readingContext(openid);
+  if (!context) {
+    throw new Error("先填写生日，再来问");
+  }
+  const date = todayShanghai();
+  const count = await db.collection("asks").where({ openid, date }).count();
+  if (count.total >= 10) {
+    throw new Error("今天的提问已经用完了");
+  }
+  const reading = await db.collection("readings").where({ openid, date, promptVersion: PROMPT_VERSION }).limit(1).get();
+  const lines = reading.data[0] ? reading.data[0].lines.join("\n") : "";
+  const earlier = await db.collection("asks").where({ openid, date }).limit(20).get();
+  const history = earlier.data
+    .slice()
+    .sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0))
+    .slice(-4)
+    .flatMap((item) => [
+      { role: "user", content: item.question },
+      { role: "assistant", content: item.answer },
+    ]);
+  const key = deepSeekKey();
+  if (!key) {
+    throw new Error("还没有配置 AI 密钥");
+  }
+  const result = await postJson(
+    "https://api.deepseek.com/chat/completions",
+    { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    {
+      model: "deepseek-chat",
+      temperature: 0.7,
+      messages: [
+        { role: "system", content: "你是炎都拾光里的生活助手。综合五行、星座、八字和紫微斗数，用几句温和的中文回答。不要写成医疗建议。不要写出出生年月日、时辰或出生地。不要输出 JSON。" },
+        { role: "user", content: `今天的建议是：\n${lines}` },
+      ].concat(history, [{ role: "user", content: text }]),
+    }
+  );
+  const answer = (result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) || "";
+  if (!answer.trim()) {
+    throw new Error("没有得到回答");
+  }
+  await db.collection("asks").add({
+    data: { openid, date, question: text, answer: answer.trim(), createdAt: Date.now() },
+  });
+  return { ok: true, answer: answer.trim(), remaining: Math.max(0, 10 - earlier.data.length - 1) };
 }

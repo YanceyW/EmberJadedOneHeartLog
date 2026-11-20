@@ -1,6 +1,9 @@
 # 微信开发者工具的本机配置，不进入版本库
 project.private.config.json
 
+# 云函数密钥，只留在本机和云端，不进入版本库
+cloudfunctions/api/secret.js
+
 # 依赖
 node_modules/
 miniprogram_npm/

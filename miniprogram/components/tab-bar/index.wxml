@@ -1,5 +1,7 @@
 <view class="bar">
-  <view class="item {{current === 'home' ? 'on' : ''}}" data-name="home" data-url="/pages/home/index" bindtap="go"><text class="pill">首页</text></view>
-  <view class="item {{current === 'calendar' ? 'on' : ''}}" data-name="calendar" data-url="/pages/calendar/index" bindtap="go"><text class="pill">日历</text></view>
-  <view class="item {{current === 'mine' ? 'on' : ''}}" data-name="mine" data-url="/pages/mine/index" bindtap="go"><text class="pill">我的</text></view>
+  <view class="slider" style="transform: translateX({{current * 100}}%);"></view>
+  <view class="item {{current === 0 ? 'on' : ''}}" data-index="0" bindtap="go">首页</view>
+  <view class="item {{current === 1 ? 'on' : ''}}" data-index="1" bindtap="go">日历</view>
+  <view class="item {{current === 2 ? 'on' : ''}}" data-index="2" bindtap="go">记录</view>
+  <view class="item {{current === 3 ? 'on' : ''}}" data-index="3" bindtap="go">我</view>
 </view>

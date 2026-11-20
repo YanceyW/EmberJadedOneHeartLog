@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="card">
+    <view>{{partnerText}}</view>
+    <view class="btn plain" wx:if="{{chosenOpenid}}" bindtap="clearPartner">取消选择</view>
+    <view class="person" wx:for="{{people}}" wx:key="openid">
+      <view>
+        <view>{{item.nickName || '未命名'}}</view>
+        <view class="muted">{{item.chosenMe ? '对方已选择你' : ''}}</view>
+      </view>
+      <view class="chip {{chosenOpenid === item.openid ? 'on' : ''}}" data-openid="{{item.openid}}" bindtap="choose">确认为对象</view>
+    </view>
+    <view class="muted" wx:if="{{!people.length}}">还没有其他人打开过这个小程序</view>
+  </view>
+</view>

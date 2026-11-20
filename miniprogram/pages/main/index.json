@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "",
+  "usingComponents": {
+    "home-panel": "/pages/home/index",
+    "calendar-panel": "/pages/calendar/index",
+    "records-panel": "/pages/records/index",
+    "mine-panel": "/pages/mine/index",
+    "tab-bar": "/components/tab-bar/index"
+  }
+}

@@ -4,6 +4,7 @@ const DEFAULT_FILTER = {
   period: true,
   fertile: true,
   anniversary: true,
+  birthday: true,
   schedule: true,
 };
 

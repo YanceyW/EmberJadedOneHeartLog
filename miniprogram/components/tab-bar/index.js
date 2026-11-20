@@ -1,18 +1,17 @@
 Component({
   properties: {
     current: {
-      type: String,
-      value: "home",
+      type: Number,
+      value: 0,
     },
   },
   methods: {
     go(event) {
-      const url = event.currentTarget.dataset.url;
-      const name = event.currentTarget.dataset.name;
-      if (name === this.data.current) {
+      const index = Number(event.currentTarget.dataset.index);
+      if (index === this.data.current) {
         return;
       }
-      wx.reLaunch({ url });
+      this.triggerEvent("change", { index });
     },
   },
 });

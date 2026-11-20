@@ -1,7 +1,7 @@
 {
   "name": "api",
   "version": "1.0.0",
-  "description": "一心日志的全部云函数入口",
+  "description": "炎都拾光的全部云函数入口",
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "~2.6.3"

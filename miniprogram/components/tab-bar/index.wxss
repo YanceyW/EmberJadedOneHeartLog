@@ -1,36 +1,43 @@
 .bar {
   position: fixed;
-  left: 16rpx;
-  right: 16rpx;
-  bottom: 16rpx;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: calc(12rpx + env(safe-area-inset-bottom) * 0.28);
+  height: 88rpx;
   display: flex;
+  align-items: center;
   background: #fffaf8;
   border-radius: 999rpx;
   box-shadow: 0 8rpx 28rpx rgba(227, 154, 168, 0.18);
-  padding: 10rpx;
-  padding-bottom: calc(10rpx + env(safe-area-inset-bottom));
-  z-index: 4;
+  z-index: 30;
+  padding: 0 8rpx;
+  box-sizing: border-box;
+}
+
+.slider {
+  position: absolute;
+  left: 8rpx;
+  top: 8rpx;
+  width: calc((100% - 16rpx) / 4);
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: #f8d5dc;
+  transition: transform 0.28s ease;
 }
 
 .item {
+  position: relative;
+  z-index: 1;
   flex: 1;
-  text-align: center;
-  line-height: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #a08b84;
   font-size: 28rpx;
-}
-
-.pill {
-  display: inline-block;
-  min-width: 120rpx;
-  border-radius: 999rpx;
 }
 
 .item.on {
   color: #8a3d48;
   font-weight: 600;
-}
-
-.item.on .pill {
-  background: #f8d5dc;
 }

@@ -1,0 +1,51 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+  padding-bottom: 24rpx;
+}
+
+.talk {
+  flex: 1;
+  height: 0;
+  padding: 24rpx 0;
+}
+
+.bubble {
+  max-width: 80%;
+  margin: 0 32rpx 20rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 24rpx;
+  line-height: 1.6;
+}
+
+.bubble.user {
+  margin-left: auto;
+  background: #f8d5dc;
+  color: #5c463f;
+}
+
+.bubble.ai {
+  background: #fff3c4;
+  color: #5c463f;
+}
+
+.ai-badge {
+  display: inline-block;
+  margin-bottom: 8rpx;
+  background: #5c463f;
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 36rpx;
+  padding: 0 12rpx;
+  border-radius: 8rpx;
+}
+
+.composer {
+  padding: 0 32rpx;
+}
+
+.send {
+  margin-top: 16rpx;
+}

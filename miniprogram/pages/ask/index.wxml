@@ -1,0 +1,13 @@
+<view class="page">
+  <scroll-view class="talk" scroll-y scroll-into-view="{{writing ? 'end' : ''}}">
+    <view class="bubble {{item.role}}" wx:for="{{messages}}" wx:key="id" id="{{index === messages.length - 1 ? 'end' : ''}}">
+      <view class="ai-badge" wx:if="{{item.role === 'ai'}}">AI</view>
+      <view>{{item.role === 'ai' ? item.shown : item.text}}</view>
+    </view>
+  </scroll-view>
+  <view class="composer">
+    <view class="muted">今天还可以问 {{remaining}} 句</view>
+    <input value="{{question}}" placeholder="想问今天怎么运势怎么样" bindinput="onQuestion" />
+    <view class="btn send" bindtap="send">发送</view>
+  </view>
+</view>

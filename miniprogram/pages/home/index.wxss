@@ -1,4 +1,84 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.page {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16rpx 32rpx 280rpx;
+}
+
+.card {
+  background: rgba(255, 250, 248, 0.82);
+  border-radius: 32rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 28rpx rgba(227, 154, 168, 0.12);
+}
+
+.title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #5c463f;
+}
+
+.muted {
+  color: #a08b84;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.section-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #5c463f;
+  margin-bottom: 8rpx;
+}
+
+.place {
+  color: #8a3d48;
+  margin-bottom: 8rpx;
+}
+
+.sky-icon {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sky-icon.sun { background: #f0c14a; }
+.sky-icon.cloud { background: #d9d3cf; }
+.sky-icon.rain { background: #8fb4d9; }
+.sky-icon.snow { background: #f4f7fb; border: 2rpx solid #d9e3ee; }
+.sky-icon.fog { background: #e6e1de; }
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.picker {
+  margin-top: 16rpx;
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+}
+
+.refresh {
+  color: #e9899a;
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
 .hello {
+  background: #fff7f4;
   display: flex;
   align-items: center;
   gap: 20rpx;
@@ -45,6 +125,43 @@
   font-weight: 600;
   line-height: 1.1;
   color: #5c463f;
+}
+
+.ai-badge {
+  display: inline-block;
+  background: #5c463f;
+  color: #fff;
+  font-size: 22rpx;
+  line-height: 36rpx;
+  padding: 0 12rpx;
+  border-radius: 8rpx;
+}
+
+.ai-score {
+  margin-top: 12rpx;
+  color: #8a3d48;
+}
+
+.ai-line {
+  margin-top: 14rpx;
+  padding: 12rpx 16rpx;
+  background: #fff3c4;
+  border-radius: 12rpx;
+  line-height: 1.6;
+}
+
+.note {
+  margin-top: 16rpx;
+}
+
+.ask {
+  margin-top: 16rpx;
+  border: 2rpx solid #e9899a;
+  color: #8a3d48;
+  border-radius: 999rpx;
+  text-align: center;
+  line-height: 72rpx;
+  font-weight: 600;
 }
 
 .remind {

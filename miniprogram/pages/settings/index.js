@@ -2,7 +2,7 @@
 const ITEMS = [
   {
     scope: "scope.userLocation",
-    name: "位置信息",
+    name: "位置权限",
     desc: "查询当地天气。坐标不保存，也不给对方看",
   },
 ];

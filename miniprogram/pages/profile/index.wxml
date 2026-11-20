@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="card">
+    <view class="label">昵称</view>
+    <input value="{{nickName}}" placeholder="怎么称呼你" bindinput="onNick" />
+    <view class="label">性别</view>
+    <view class="row">
+      <view class="chip {{gender === 'female' ? 'on' : ''}}" data-gender="female" bindtap="onGender">女</view>
+      <view class="chip {{gender === 'male' ? 'on' : ''}}" data-gender="male" bindtap="onGender">男</view>
+    </view>
+    <view class="muted" wx:if="{{!gender}}">还没选性别时不显示经期</view>
+    <block wx:if="{{showOwnCycle}}">
+      <view class="label">周期长度（天）</view>
+      <input type="number" value="{{cycleLength}}" bindinput="onCycle" />
+      <view class="label">经期长度（天）</view>
+      <input type="number" value="{{periodLength}}" bindinput="onPeriod" />
+    </block>
+    <block wx:if="{{showPartnerCycle}}">
+      <view class="label">对象的周期长度（天）</view>
+      <input type="number" value="{{partnerCycleLength}}" bindinput="onPartnerCycle" />
+      <view class="label">对象的经期长度（天）</view>
+      <input type="number" value="{{partnerPeriodLength}}" bindinput="onPartnerPeriod" />
+    </block>
+    <view class="label">对象</view>
+    <view class="picker" bindtap="openPartner">{{partnerText}}</view>
+    <view class="row wrap" wx:if="{{hasPartner}}">
+      <view class="chip {{partnerTitle === item ? 'on' : ''}}" wx:for="{{roleOptions}}" wx:key="*this" data-title="{{item}}" bindtap="onRole">{{item}}</view>
+    </view>
+    <view class="label">经期提醒</view>
+    <view class="chip {{periodRemind ? 'on' : ''}}" bindtap="onPeriodRemind">{{periodRemind ? '已开启' : '不提醒'}}</view>
+    <view class="label">出生日期（选填）</view>
+    <picker mode="multiSelector" range="{{birthRange}}" value="{{birthIndex}}" bindcolumnchange="onBirthColumn" bindchange="onBirthPick">
+      <view class="picker">{{birthText || '选填'}}</view>
+    </picker>
+    <view class="label">出生时间（选填）</view>
+    <picker mode="selector" range="{{timeRange}}" value="{{timeIndex}}" bindchange="onTimePick">
+      <view class="picker">{{birthHour || '选填'}}</view>
+    </picker>
+    <view class="label">出生地（选填）</view>
+    <picker mode="region" value="{{region}}" bindchange="onRegion">
+      <view class="picker">{{birthPlace || '选填'}}</view>
+    </picker>
+    <view class="btn save" bindtap="saveProfile">保存资料</view>
+  </view>
+</view>

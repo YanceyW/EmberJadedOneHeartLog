@@ -1,10 +1,11 @@
 {
   "pages": [
-    "pages/home/index",
-    "pages/calendar/index",
-    "pages/mine/index",
+    "pages/main/index",
+    "pages/profile/index",
+    "pages/partner/index",
     "pages/settings/index",
-    "pages/soon/index"
+    "pages/soon/index",
+    "pages/ask/index"
   ],
   "window": {
     "navigationBarTitleText": "",

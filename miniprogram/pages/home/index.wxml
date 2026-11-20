@@ -1,22 +1,43 @@
 <view class="page">
-  <view class="hello rise">
+  <view class="hello">
     <view class="mini-heart"></view>
     <view>
       <view class="title">{{hello}}</view>
+      <view class="muted">{{todayLine}}</view>
       <view class="muted">今天也要好好照顾彼此</view>
     </view>
   </view>
 
-  <view class="card weather rise d2">
-    <view class="temp" wx:if="{{weatherTemp}}">{{weatherTemp}}°</view>
-    <view class="title" wx:else>{{weatherText}}</view>
+  <view class="card">
+    <view class="section-title">天气</view>
+    <view class="place" wx:if="{{weatherPlace}}">{{weatherPlace}}</view>
+    <view class="row-between">
+      <view class="sky-icon {{weatherKind}}" wx:if="{{weatherKind}}"></view>
+      <view class="temp" wx:if="{{weatherTemp}}">{{weatherTemp}}°</view>
+      <view class="title" wx:else>{{weatherText}}</view>
+      <view class="refresh" bindtap="refreshWeather">{{refreshing ? '刷新中' : '刷新'}}</view>
+    </view>
+    <view class="muted" wx:if="{{tempMin !== '' && tempMax !== ''}}">最低 {{tempMin}}° · 最高 {{tempMax}}°</view>
     <view wx:if="{{weatherName}}">{{weatherName}}</view>
     <view class="muted" wx:if="{{clothing}}">{{clothing}}</view>
+    <view wx:if="{{care}}">{{care}}</view>
     <view class="muted" wx:if="{{weatherHint}}">{{weatherHint}}</view>
-    <button wx:if="{{needLocate}}" class="locate" bindtap="openPermissions">去设置里打开</button>
+    <picker wx:if="{{needCity}}" mode="region" value="{{region}}" bindchange="onCity">
+      <view class="picker">{{cityName || '选择城市'}}</view>
+    </picker>
+    <view wx:if="{{needLocate}}" class="locate" bindtap="openPermissions">去设置里打开定位</view>
   </view>
 
-  <view class="card remind rise d3" wx:if="{{reminder}}">
+  <view class="card" wx:if="{{aiLines.length}}">
+    <view class="section-title">今日建议</view>
+    <view class="ai-badge">AI</view>
+    <view class="ai-score" wx:if="{{aiScore}}">综合 {{aiScore}}</view>
+    <view class="ai-line" wx:for="{{aiLines}}" wx:key="*this">{{item}}</view>
+    <view class="muted note">仅供参考</view>
+    <view class="ask" bindtap="openAsk">再问一句</view>
+  </view>
+
+  <view class="card remind" wx:if="{{reminder && !aiLines.length}}">
     <view class="mini-heart still"></view>
     <view>
       <view>{{reminder}}</view>
@@ -24,11 +45,8 @@
     </view>
   </view>
 
-  <view class="grid">
-    <view class="entry" wx:for="{{soon}}" wx:key="*this" data-name="{{item}}" bindtap="openSoon">
-      <view>{{item}}</view>
-      <view class="muted">施工中</view>
-    </view>
+  <view class="card next" bindtap="openCalendar">
+    <view class="section-title">临近</view>
+    <view>{{nextText}}</view>
   </view>
-  <tab-bar current="home" />
 </view>

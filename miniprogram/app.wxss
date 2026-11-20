@@ -6,8 +6,9 @@ page {
 }
 
 .page {
+  width: 100%;
   min-height: 100vh;
-  padding: 24rpx 24rpx 160rpx;
+  padding: 32rpx 32rpx calc(48rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 

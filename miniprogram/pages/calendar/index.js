@@ -1,33 +1,83 @@
 const app = getApp();
 const { buildMarks } = require("../../utils/cycle");
-const { addDays, anniversaryOn, diffDays, displayDate, pad, todayString } = require("../../utils/date");
+const { addDays, anniversaryOn, anniversaryIndex, chineseDate, diffDays, displayDate, pad, todayString } = require("../../utils/date");
+
+function readChineseDate(text) {
+  const matched = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(String(text || ""));
+  if (!matched) {
+    return null;
+  }
+  return { year: Number(matched[1]), month: Number(matched[2]), day: Number(matched[3]) };
+}
 const { loadFilter, saveFilter } = require("../../utils/filter");
+const { markDay, birthText, birthFrom, buildBirth, indexFromBirth } = require("../../utils/lunar");
+const { birthdayPhrase, occursOn } = require("../../utils/birthday");
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 
-Page({
+Component({
   data: {
     week: WEEK,
     title: "",
     cells: [],
-    showUpcoming: false,
-    fading: true,
+    expanded: false,
+    offsetY: 0,
+    dragging: false,
+    monthAnim: "",
     upcoming: [],
-    filter: { period: true, fertile: true, anniversary: true, schedule: true },
+    filter: { period: true, fertile: true, anniversary: true, birthday: true, schedule: true },
     showFilter: false,
     sheet: "",
+    menuLeft: 12,
+    menuTop: 12,
+    menuStep: 0,
+    filterStep: 0,
+    popLeft: 12,
+    popTop: 80,
+    popHeight: 180,
+    popShift: 0,
     dayItems: [],
+    dayLunar: "",
+    dayYi: "",
+    dayJi: "",
     selectedDate: "",
     form: {},
     canEditPeriod: false,
     hint: "",
+    todayYi: "",
+    todayJi: "",
+    almanacHint: "正在整理今天",
+    almanacNote: "",
+    brief: "",
+    almanacOpen: false,
+    almanacHeight: 320,
+    almanacShift: 0,
   },
-
+  properties: {
+    active: {
+      type: Boolean,
+      value: false,
+    },
+  },
+  observers: {
+    active(value) {
+      if (value && this.year) {
+        this.reload();
+      }
+    },
+  },
+  pageLifetimes: {
+    show() {
+      this.onShow();
+    },
+  },
+  methods: {
   onShow() {
-    const now = new Date();
-    this.year = now.getFullYear();
-    this.month = now.getMonth() + 1;
-    this.session = null;
+    if (!this.year) {
+      const now = new Date();
+      this.year = now.getFullYear();
+      this.month = now.getMonth() + 1;
+    }
     this.reload();
   },
 
@@ -42,9 +92,62 @@ Page({
     this.setData({
       filter,
       canEditPeriod: result.canEditPeriod,
-      hint: result.user.gender ? "" : "请先在「我的」选择性别，才能记录经期",
+      hint: result.user.gender ? "" : "请先在「编辑资料」里选择性别，才能记录经期",
     });
     this.render();
+    this.loadToday();
+  },
+
+  async loadToday() {
+    const result = await app.call("almanac", { date: todayString() });
+    if (result.ok) {
+      this.setData({ todayYi: result.yi, todayJi: result.ji, almanacNote: result.note, almanacHint: "" });
+    } else {
+      this.setData({ almanacHint: "今天的宜忌还在准备", todayYi: "", todayJi: "" });
+    }
+    if (!this.session || !this.session.user || !this.session.user.birthDate) {
+      return;
+    }
+    const cached = wx.getStorageSync("weather-cache") || {};
+    const reading = await app.call("dailyReading", {
+      weather: cached.temp ? `${cached.temp}° ${cached.text}，${cached.clothing}` : "",
+      weatherSource: cached.source || "",
+    });
+    if (reading.ok && reading.brief) {
+      this.setData({ brief: reading.brief });
+    }
+  },
+
+  openAlmanac() {
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : { windowHeight: 700 };
+    this.setData({
+      almanacOpen: true,
+      almanacShift: 0,
+      almanacHeight: Math.round(info.windowHeight * 0.42),
+    });
+  },
+
+  onAlmanacStart(event) {
+    this.almanacY = event.touches[0].clientY;
+    this.almanacBase = this.data.almanacHeight;
+  },
+
+  onAlmanacMove(event) {
+    const dy = event.touches[0].clientY - this.almanacY;
+    if (dy < 0) {
+      const info = wx.getWindowInfo ? wx.getWindowInfo() : { windowHeight: 700 };
+      this.setData({ almanacHeight: Math.min(info.windowHeight - 48, this.almanacBase - dy), almanacShift: 0 });
+      return;
+    }
+    this.setData({ almanacShift: dy });
+  },
+
+  onAlmanacEnd() {
+    if ((this.data.almanacShift || 0) > 70) {
+      this.setData({ almanacOpen: false, almanacShift: 0 });
+      return;
+    }
+    this.setData({ almanacShift: 0 });
   },
 
   ownerProfile() {
@@ -77,6 +180,7 @@ Page({
     if (filter.fertile && marks.ovulation.has(date)) icons.push("ovulation");
     else if (filter.fertile && marks.fertile.has(date)) icons.push("fertile");
     if (filter.anniversary && this.anniversariesOn(date).length) icons.push("anniversary");
+    if (filter.birthday && this.birthdaysOn(date).length) icons.push("birthday");
     if (filter.schedule && this.schedulesOn(date).length) icons.push("schedule");
     return icons;
   },
@@ -94,6 +198,10 @@ Page({
     });
   },
 
+  birthdaysOn(date) {
+    return (this.session.birthdays || []).filter((item) => occursOn(item, date));
+  },
+
   schedulesOn(date) {
     return (this.session.schedules || []).filter((item) => item.date === date);
   },
@@ -109,12 +217,15 @@ Page({
     for (let day = 1; day <= count; day += 1) {
       const date = `${this.year}-${pad(this.month)}-${pad(day)}`;
       const icons = this.iconsFor(date, marks);
+      const marked = markDay(this.year, this.month, day);
       cells.push({
         key: date,
         empty: false,
         day,
         date,
         today: date === todayString(),
+        lunar: marked.lunar,
+        lunarFull: marked.lunarFull,
         icons: icons.slice(0, 3),
         more: Math.max(0, icons.length - 3),
       });
@@ -126,7 +237,9 @@ Page({
       title: `${this.year}年${this.month}月`,
       cells,
       upcoming: this.buildUpcoming(marks),
+      preview: this.buildUpcoming(marks).slice(0, 3),
     });
+    this.measureMonth();
   },
 
   buildUpcoming(marks) {
@@ -134,7 +247,7 @@ Page({
     const end = addDays(today, 30);
     const items = [];
     if (marks.predictedStart && marks.predictedStart >= today && marks.predictedStart <= end) {
-      items.push({ id: "period", date: marks.predictedStart, title: "预计经期开始" });
+      items.push({ id: "period", kind: "period", date: marks.predictedStart, title: "预计经期开始" });
     }
     const todayYear = Number(today.slice(0, 4));
     (this.session.anniversaries || []).forEach((item) => {
@@ -144,41 +257,133 @@ Page({
       const thisYear = anniversaryOn(todayYear, item.month, item.day);
       const next = item.yearly === false ? thisYear : thisYear >= today ? thisYear : anniversaryOn(todayYear + 1, item.month, item.day);
       if (next >= today && next <= end) {
-        items.push({ id: item._id, date: next, title: item.title });
+        const count = item.yearly !== false ? anniversaryIndex(item.year, item.month, item.day, today) : 0;
+        items.push({
+          id: item._id,
+          kind: "anniversary",
+          date: next,
+          title: count ? `${item.title} · 第${count}个` : item.title,
+        });
+      }
+    });
+    (this.session.birthdays || []).forEach((item) => {
+      const info = birthdayPhrase(item, today);
+      if (info.date && info.date >= today && info.date <= end) {
+        items.push({ id: item._id, kind: "birthday", date: info.date, title: item.title, label: info.text });
       }
     });
     (this.session.schedules || []).forEach((item) => {
       if (item.date >= today && item.date <= end) {
-        items.push({ id: item._id, date: item.date, title: item.title });
+        items.push({ id: item._id, kind: "schedule", date: item.date, title: item.title });
       }
     });
     items.sort((left, right) => (left.date < right.date ? -1 : 1));
     return items.map((item) => ({
       ...item,
-      label: `${displayDate(item.date)} · 还有 ${diffDays(today, item.date)} 天`,
+      label: item.label || `${displayDate(item.date)} · 还有 ${diffDays(today, item.date)} 天`,
     }));
   },
 
+  onMonthStart(event) {
+    this.axis = "";
+    this.onTouchStart(event);
+  },
+
+  onMonthMove(event) {
+    if (!this.gesture) {
+      return;
+    }
+    const dy = event.touches[0].clientY - this.touchY;
+    const dx = event.touches[0].clientX - this.touchX;
+    if (!this.axis) {
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) {
+        return;
+      }
+      this.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+    if (this.axis === "x") {
+      return;
+    }
+    this.onTouchMove(event);
+  },
+
+  onMonthEnd(event) {
+    if (this.axis === "x") {
+      this.gesture = false;
+      const dx = event.changedTouches[0].clientX - this.touchX;
+      this.axis = "";
+      if (dx <= -60) {
+        this.shiftBy(1);
+      } else if (dx >= 60) {
+        this.shiftBy(-1);
+      }
+      return;
+    }
+    this.axis = "";
+    this.onTouchEnd(event);
+  },
+
   onTouchStart(event) {
+    if (this.data.sheet) {
+      return;
+    }
     this.touchX = event.touches[0].clientX;
     this.touchY = event.touches[0].clientY;
+    this.gesture = true;
+  },
+
+  onTouchMove(event) {
+    if (!this.gesture) {
+      return;
+    }
+    const dy = event.touches[0].clientY - this.touchY;
+    const dx = event.touches[0].clientX - this.touchX;
+    if (Math.abs(dy) < 12 || Math.abs(dy) <= Math.abs(dx)) {
+      return;
+    }
+    const base = this.data.expanded ? -(this.monthHeight || 0) : 0;
+    let offsetY = base + dy;
+    const limit = -(this.monthHeight || 0);
+    if (offsetY > 0) offsetY = 0;
+    if (offsetY < limit) offsetY = limit;
+    this.setData({ offsetY, dragging: true });
   },
 
   onTouchEnd(event) {
-    const dx = event.changedTouches[0].clientX - this.touchX;
-    const dy = event.changedTouches[0].clientY - this.touchY;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
-      this.shiftMonth(dx < 0 ? 1 : -1);
+    if (!this.gesture) {
       return;
     }
-    if (dy > 80 && !this.data.showUpcoming) {
-      this.setData({ showUpcoming: true });
-    } else if (dy < -80 && this.data.showUpcoming) {
-      this.setData({ showUpcoming: false });
+    this.gesture = false;
+    const dy = event.changedTouches[0].clientY - this.touchY;
+    if (!this.data.dragging && Math.abs(dy) < 12) {
+      return;
     }
+    let expanded = this.data.expanded;
+    if (!expanded && dy < -80) expanded = true;
+    if (expanded && dy > 80) expanded = false;
+    this.setData({
+      expanded,
+      offsetY: expanded ? -(this.monthHeight || 0) : 0,
+      dragging: false,
+    });
   },
 
-  shiftMonth(step) {
+  measureMonth() {
+    wx.createSelectorQuery()
+      .in(this)
+      .select(".month")
+      .boundingClientRect((rect) => {
+        if (rect && rect.height) this.monthHeight = rect.height;
+      })
+      .exec();
+  },
+
+  shiftMonth(event) {
+    this.shiftBy(Number(event.currentTarget.dataset.step));
+  },
+
+  shiftBy(step) {
+    this.setData({ monthAnim: step > 0 ? "to-left" : "to-right" });
     let month = this.month + step;
     let year = this.year;
     if (month < 1) {
@@ -191,13 +396,20 @@ Page({
     }
     this.month = month;
     this.year = year;
-    this.setData({ fading: false });
     this.render();
-    setTimeout(() => this.setData({ fading: true }), 16);
   },
 
   toggleFilter() {
-    this.setData({ showFilter: !this.data.showFilter, sheet: "" });
+    const showFilter = !this.data.showFilter;
+    this.setData({ showFilter, sheet: "", filterStep: 0 });
+    if (!showFilter) {
+      return;
+    }
+    setTimeout(() => this.setData({ filterStep: 1 }), 30);
+    setTimeout(() => this.setData({ filterStep: 2 }), 110);
+    setTimeout(() => this.setData({ filterStep: 3 }), 190);
+    setTimeout(() => this.setData({ filterStep: 4 }), 270);
+    setTimeout(() => this.setData({ filterStep: 5 }), 350);
   },
 
   changeFilter(event) {
@@ -209,6 +421,10 @@ Page({
   },
 
   openDay(event) {
+    if (this.longPressed) {
+      this.longPressed = false;
+      return;
+    }
     const date = event.currentTarget.dataset.date;
     if (!date) {
       return;
@@ -226,12 +442,94 @@ Page({
     if (marks.ovulation.has(date)) items.push({ kind: "text", id: `ovulation-${date}`, title: "排卵日，仅供参考" });
     else if (marks.fertile.has(date)) items.push({ kind: "text", id: `fertile-${date}`, title: "易孕期，仅供参考" });
     this.anniversariesOn(date).forEach((item) => {
-      items.push({ kind: "anniversary", id: item._id, title: item.title, mine: item.creatorOpenid === mine });
+      const count = item.yearly !== false ? anniversaryIndex(item.year, item.month, item.day, todayString()) : 0;
+      items.push({
+        kind: "anniversary",
+        id: item._id,
+        title: count ? `${item.title} · 第${count}个` : item.title,
+        mine: item.creatorOpenid === mine,
+      });
+    });
+    this.birthdaysOn(date).forEach((item) => {
+      const info = birthdayPhrase(item, todayString());
+      items.push({ kind: "birthday", id: item._id, title: item.title, extra: info.text });
     });
     this.schedulesOn(date).forEach((item) => {
       items.push({ kind: "schedule", id: item._id, title: item.title, mine: item.creatorOpenid === mine });
     });
-    this.setData({ sheet: "day", selectedDate: date, dayItems: items, showFilter: false });
+    const cell = (this.data.cells || []).find((item) => item.date === date) || {};
+    const query = wx.createSelectorQuery().in(this);
+    query.select("#d-" + date).boundingClientRect();
+    query.exec((res) => {
+      const rect = res && res[0];
+      const info = wx.getWindowInfo ? wx.getWindowInfo() : { windowWidth: 375, windowHeight: 700 };
+      const width = 260;
+      const popHeight = 280;
+      let left = rect ? rect.left : 24;
+      let top = rect ? rect.bottom + 8 : 120;
+      if (left + width > info.windowWidth - 12) left = info.windowWidth - width - 12;
+      if (left < 12) left = 12;
+      if (top > info.windowHeight - popHeight - 24) top = Math.max(12, (rect ? rect.top : top) - popHeight);
+      this.openedAt = Date.now();
+      this.setData({
+        sheet: "day",
+        selectedDate: date,
+        dayItems: items,
+        dayLunar: cell.lunarFull || "",
+        dayYi: cell.yi || "",
+        dayJi: cell.ji || "",
+        showFilter: false,
+        popLeft: left,
+        popTop: top,
+        popHeight,
+        popShift: 0,
+      });
+    });
+  },
+
+  onPopStart(event) {
+    this.popY = event.touches[0].clientY;
+  },
+
+  onPopMove(event) {
+    const dy = event.touches[0].clientY - this.popY;
+    if (dy < 0) {
+      const info = wx.getWindowInfo ? wx.getWindowInfo() : { windowHeight: 700 };
+      const maxHeight = Math.max(180, info.windowHeight - this.data.popTop - 24);
+      this.setData({ popHeight: Math.min(maxHeight, 180 - dy) });
+      return;
+    }
+    this.setData({ popShift: dy });
+  },
+
+  onPopEnd() {
+    if ((this.data.popShift || 0) > 70) {
+      this.setData({ sheet: "", popShift: 0 });
+      return;
+    }
+    this.setData({ popShift: 0 });
+  },
+
+  openMenu(event) {
+    const date = event.currentTarget.dataset.date;
+    if (!date) return;
+    this.longPressed = true;
+    this.openedAt = Date.now();
+    const touch = (event.touches && event.touches[0]) || (event.changedTouches && event.changedTouches[0]) || {};
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : { windowWidth: 375, windowHeight: 700 };
+    const menuWidth = 168;
+    const menuHeight = 220;
+    let left = touch.clientX || event.detail.x || 24;
+    let top = touch.clientY || event.detail.y || 24;
+    if (left + menuWidth > info.windowWidth - 12) left = info.windowWidth - menuWidth - 12;
+    if (left < 12) left = 12;
+    if (top + menuHeight > info.windowHeight - 96) top = info.windowHeight - menuHeight - 96;
+    if (top < 12) top = 12;
+    this.setData({ sheet: "menu", selectedDate: date, showFilter: false, menuLeft: left, menuTop: top, menuStep: 0 });
+    setTimeout(() => this.setData({ menuStep: 1 }), 30);
+    setTimeout(() => this.setData({ menuStep: 2 }), 110);
+    setTimeout(() => this.setData({ menuStep: 3 }), 190);
+    setTimeout(() => this.setData({ menuStep: 4 }), 270);
   },
 
   noteText(note) {
@@ -241,8 +539,93 @@ Page({
     return [flow, pain].filter(Boolean).join("，");
   },
 
+  dismissPop() {
+    if (this.data.almanacOpen) {
+      this.setData({ almanacOpen: false, almanacShift: 0 });
+      return;
+    }
+    if (this.openedAt && Date.now() - this.openedAt < 350) {
+      return;
+    }
+    this.closeSheet();
+  },
+
+  openDayItem(event) {
+    const kind = event.currentTarget.dataset.kind;
+    const id = event.currentTarget.dataset.id;
+    if (kind === "period") {
+      this.startPeriod();
+      return;
+    }
+    if (kind !== "anniversary" && kind !== "schedule" && kind !== "birthday") {
+      return;
+    }
+    const item = (this.data.dayItems || []).find((entry) => entry.id === id) || {};
+    this.setData({
+      sheet: "detail",
+      detailId: id,
+      detailKind: kind,
+      detailTitle: item.title || "",
+      detailLabel: item.extra || this.data.selectedDate,
+    });
+  },
+
+  openRecords() {
+    this.triggerEvent("jumpto", { index: 2 });
+  },
+
+  openUpcoming(event) {
+    const id = event.currentTarget.dataset.id;
+    const kind = event.currentTarget.dataset.kind;
+    const item = (this.data.upcoming || []).find((entry) => entry.id === id);
+    if (!item) {
+      return;
+    }
+    this.setData({
+      sheet: "detail",
+      detailId: id,
+      detailKind: kind,
+      detailTitle: item.title,
+      detailLabel: item.label,
+    });
+  },
+
+  editDetail() {
+    const event = { currentTarget: { dataset: { id: this.data.detailId } } };
+    if (this.data.detailKind === "anniversary") {
+      this.startAnniversary(event);
+      return;
+    }
+    if (this.data.detailKind === "birthday") {
+      this.startBirthday(event);
+      return;
+    }
+    if (this.data.detailKind === "schedule") {
+      this.startSchedule(event);
+    }
+  },
+
+  askDelete() {
+    const name = { anniversary: "纪念日", birthday: "生日", schedule: "日程" }[this.data.detailKind] || "记录";
+    wx.showModal({
+      title: "要删除吗",
+      content: `要删除这个${name}吗`,
+      success: (res) => {
+        if (res.confirm) {
+          this.removeDetail();
+        }
+      },
+    });
+  },
+
+  async removeDetail() {
+    const action = { anniversary: "deleteAnniversary", birthday: "deleteBirthday", schedule: "deleteSchedule" }[this.data.detailKind];
+    const result = await app.call(action, { id: this.data.detailId });
+    this.afterSave(result);
+  },
+
   closeSheet() {
-    this.setData({ sheet: "" });
+    this.setData({ sheet: "", popShift: 0 });
   },
 
   startPeriod() {
@@ -263,17 +646,81 @@ Page({
     });
   },
 
+  startBirthday(event) {
+    const found = (this.session.birthdays || []).find((item) => item._id === event.currentTarget.dataset.id);
+    const date = this.data.selectedDate || todayString();
+    const calendar = found && found.calendar === "lunar" ? "lunar" : "solar";
+    const year = found ? found.year : Number(date.slice(0, 4));
+    const month = found ? found.month : Number(date.slice(5, 7));
+    const day = found ? found.day : Number(date.slice(8, 10));
+    const leap = !!(found && found.leap);
+    const code = calendar === "lunar" ? `${year}-${leap ? "L" : ""}${pad(month)}-${pad(day)}` : `${year}-${pad(month)}-${pad(day)}`;
+    const birthIndex = indexFromBirth(calendar, code) || buildBirth([calendar === "lunar" ? 1 : 0, 80, 0, 0]).index;
+    const built = buildBirth(birthIndex);
+    this.setData({
+      sheet: "birthday",
+      form: {
+        id: found ? found._id : "",
+        title: found ? found.title : "",
+        calendar,
+        year,
+        month,
+        day,
+        leap,
+        dateText: calendar === "lunar" ? birthText("lunar", code) : chineseDate(year, month, day),
+        anniversaryDate: `${year}-${pad(month)}-${pad(day)}`,
+        visibility: found ? found.visibility : "both",
+        birthRange: built.range,
+        birthIndex: built.index,
+      },
+    });
+  },
+
+  onBirthdayColumn(event) {
+    const birthIndex = (this.data.form.birthIndex || []).slice();
+    birthIndex[event.detail.column] = event.detail.value;
+    if (event.detail.column < 3) birthIndex[3] = 0;
+    if (event.detail.column < 2) birthIndex[2] = 0;
+    const built = buildBirth(birthIndex);
+    this.setData({ "form.birthRange": built.range, "form.birthIndex": built.index });
+  },
+
+  onBirthdayLunar(event) {
+    const picked = birthFrom(event.detail.value);
+    const matched = /^(\d{4})-(L)?(\d{2})-(\d{2})$/.exec(picked.date || "");
+    if (!matched || picked.calendar !== "lunar") {
+      return;
+    }
+    this.setData({
+      "form.calendar": "lunar",
+      "form.year": Number(matched[1]),
+      "form.month": Number(matched[3]),
+      "form.day": Number(matched[4]),
+      "form.leap": !!matched[2],
+      "form.dateText": birthText("lunar", picked.date),
+      "form.birthIndex": picked.index,
+    });
+  },
+
   startAnniversary(event) {
     const found = (this.session.anniversaries || []).find((item) => item._id === event.currentTarget.dataset.id);
     const date = this.data.selectedDate;
+    const year = found && found.year ? found.year : Number(date.slice(0, 4));
+    const month = found ? found.month : Number(date.slice(5, 7));
+    const day = found ? found.day : Number(date.slice(8, 10));
     this.setData({
       sheet: "anniversary",
-      form: found ? { ...found, id: found._id } : {
-        title: "",
-        month: Number(date.slice(5, 7)),
-        day: Number(date.slice(8, 10)),
-        yearly: true,
-        visibility: "both",
+      form: {
+        ...(found || {}),
+        id: found ? found._id : "",
+        title: found ? found.title : "",
+        year,
+        month,
+        day,
+        dateText: chineseDate(year, month, day),
+        anniversaryDate: `${year}-${pad(month)}-${pad(day)}`,
+        yearly: found ? found.yearly !== false : true,
+        visibility: found ? found.visibility : "both",
       },
     });
   },
@@ -282,7 +729,36 @@ Page({
     const found = (this.session.schedules || []).find((item) => item._id === event.currentTarget.dataset.id);
     this.setData({
       sheet: "schedule",
-      form: found ? { ...found, id: found._id } : { title: "", note: "", date: this.data.selectedDate, visibility: "both" },
+      form: found ? { ...found, id: found._id } : { title: "", note: "", date: this.data.selectedDate, visibility: "both", remind: "dayBefore" },
+    });
+  },
+
+  onAnniversaryDate(event) {
+    const value = event.detail.value || "";
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(5, 7));
+    const day = Number(value.slice(8, 10));
+    this.setData({
+      "form.year": year,
+      "form.month": month,
+      "form.day": day,
+      "form.anniversaryDate": value,
+      "form.dateText": chineseDate(year, month, day),
+    });
+  },
+
+  onAnniversaryText(event) {
+    const parsed = readChineseDate(event.detail.value);
+    if (!parsed) {
+      wx.showToast({ title: "写成 2018年11月26日", icon: "none" });
+      return;
+    }
+    this.setData({
+      "form.year": parsed.year,
+      "form.month": parsed.month,
+      "form.day": parsed.day,
+      "form.anniversaryDate": `${parsed.year}-${pad(parsed.month)}-${pad(parsed.day)}`,
+      "form.dateText": chineseDate(parsed.year, parsed.month, parsed.day),
     });
   },
 
@@ -325,6 +801,11 @@ Page({
     this.afterSave(result);
   },
 
+  async saveBirthday() {
+    const result = await app.call("saveBirthday", this.data.form);
+    this.afterSave(result);
+  },
+
   async saveAnniversary() {
     const form = this.data.form;
     const result = await app.call("saveAnniversary", form);
@@ -355,5 +836,6 @@ Page({
     this.session = result;
     this.setData({ sheet: "" });
     this.render();
+  },
   },
 });

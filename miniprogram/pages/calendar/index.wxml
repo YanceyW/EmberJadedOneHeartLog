@@ -1,73 +1,116 @@
 <view class="page">
+  <view class="filter-mask" wx:if="{{showFilter}}" bindtap="toggleFilter"></view>
   <view class="head">
+    <view class="arrow" data-step="-1" bindtap="shiftMonth">‹</view>
     <view class="title">{{title}}</view>
-    <view class="btn plain small" bindtap="toggleFilter">筛选</view>
+    <view class="arrow" data-step="1" bindtap="shiftMonth">›</view>
+    <view class="filter-wrap">
+      <view class="filter-icon" bindtap="toggleFilter"><view class="bar a"></view><view class="bar b"></view><view class="bar c"></view></view>
+      <view class="filter-pop" wx:if="{{showFilter}}" catchtap="noop">
+        <view class="pop-item {{filter.period ? 'on' : ''}} {{filterStep >= 1 ? 'show' : ''}}" data-key="period" bindtap="changeFilter"><view class="pop-icon heart"></view><text>经期</text></view>
+        <view class="pop-item {{filter.fertile ? 'on' : ''}} {{filterStep >= 2 ? 'show' : ''}}" data-key="fertile" bindtap="changeFilter"><view class="pop-icon mark"></view><text>排卵和易孕</text></view>
+        <view class="pop-item {{filter.anniversary ? 'on' : ''}} {{filterStep >= 3 ? 'show' : ''}}" data-key="anniversary" bindtap="changeFilter"><view class="pop-icon bell"></view><text>纪念日</text></view>
+        <view class="pop-item {{filter.birthday ? 'on' : ''}} {{filterStep >= 4 ? 'show' : ''}}" data-key="birthday" bindtap="changeFilter"><view class="pop-icon mark"></view><text>生日</text></view>
+        <view class="pop-item {{filter.schedule ? 'on' : ''}} {{filterStep >= 5 ? 'show' : ''}}" data-key="schedule" bindtap="changeFilter"><view class="pop-icon bell"></view><text>日程</text></view>
+      </view>
+    </view>
   </view>
   <view class="muted hint" wx:if="{{hint}}">{{hint}}</view>
-  <view class="filters" wx:if="{{showFilter}}">
-    <view class="chip {{filter.period ? 'on' : ''}}" data-key="period" bindtap="changeFilter">经期</view>
-    <view class="chip {{filter.fertile ? 'on' : ''}}" data-key="fertile" bindtap="changeFilter">排卵和易孕</view>
-    <view class="chip {{filter.anniversary ? 'on' : ''}}" data-key="anniversary" bindtap="changeFilter">纪念日</view>
-    <view class="chip {{filter.schedule ? 'on' : ''}}" data-key="schedule" bindtap="changeFilter">日程</view>
-  </view>
 
-  <view class="board {{fading ? 'month-in' : ''}}" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" wx:if="{{!showUpcoming}}">
-    <view class="week">
-      <view wx:for="{{week}}" wx:key="*this">{{item}}</view>
-    </view>
-    <view class="grid">
-      <view class="cell {{item.today ? 'today' : ''}}" wx:for="{{cells}}" wx:key="key" data-date="{{item.date}}" bindtap="openDay">
-        <view class="daynum" wx:if="{{!item.empty}}">{{item.day}}</view>
-        <view class="icons" wx:if="{{!item.empty}}">
-          <block wx:for="{{item.icons}}" wx:for-item="icon" wx:key="*this">
-            <view wx:if="{{icon === 'period' || icon === 'predicted'}}" class="heart {{icon}}"></view>
-            <view wx:else class="dot {{icon}}"></view>
-          </block>
-          <view class="more" wx:if="{{item.more}}">+{{item.more}}</view>
+  <view class="viewport" bindtouchstart="onTouchStart" bindtouchmove="onTouchMove" bindtouchend="onTouchEnd">
+  <view class="stage" style="transform: translateY({{offsetY}}px); transition: {{dragging ? 'none' : 'transform 0.28s ease'}};">
+    <view class="board month {{monthAnim}}" bindtouchstart="onMonthStart" catchtouchmove="onMonthMove" bindtouchend="onMonthEnd">
+      <view class="week">
+        <view class="weekday" wx:for="{{week}}" wx:key="*this">{{item}}</view>
+      </view>
+      <view class="grid">
+        <view id="{{item.date ? 'd-' + item.date : item.key}}" class="cell {{item.today ? 'today' : ''}}" wx:for="{{cells}}" wx:key="key" data-date="{{item.date}}" bindtap="openDay" bindlongpress="openMenu">
+          <view class="daynum" wx:if="{{!item.empty}}">{{item.day}}</view>
+          <view class="lunar" wx:if="{{!item.empty}}">{{item.lunar}}</view>
+          <view class="icons" wx:if="{{!item.empty}}">
+            <block wx:for="{{item.icons}}" wx:for-item="icon" wx:key="*this">
+              <view wx:if="{{icon === 'period' || icon === 'predicted'}}" class="heart {{icon}}"></view>
+              <view wx:else class="dot {{icon}}"></view>
+            </block>
+            <view class="more" wx:if="{{item.more}}">+{{item.more}}</view>
+          </view>
         </view>
       </view>
     </view>
-    <view class="muted swipe">下滑看最近 30 天，左右滑换月</view>
-  </view>
-
-  <view class="board" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" wx:else>
-    <view class="item" wx:for="{{upcoming}}" wx:key="id">
-      <view>{{item.title}}</view>
-      <view class="muted">{{item.label}}</view>
+    <view class="almanac-brief" bindtap="openAlmanac">
+      <view class="section-title">黄历</view>
+      <view wx:if="{{todayYi}}">宜 {{todayYi}}</view>
+      <view wx:if="{{todayJi}}">忌 {{todayJi}}</view>
+      <view class="muted" wx:if="{{!todayYi}}">{{almanacHint}}</view>
     </view>
-    <view class="muted" wx:if="{{!upcoming.length}}">最近 30 天没有事项</view>
-    <view class="muted swipe">上滑回到月历</view>
+    <view class="upcoming">
+      <view class="upcoming-title">
+        <text>临近</text>
+        <text class="more-link" catchtap="openRecords">全部</text>
+      </view>
+      <view class="item" wx:for="{{upcoming}}" wx:key="id" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openUpcoming">
+        <view>{{item.title}}</view>
+        <view class="muted">{{item.label}}</view>
+      </view>
+      <view class="muted" wx:if="{{!upcoming.length}}">最近还没有安排</view>
+    </view>
+  </view>
   </view>
 
-  <view class="mask" wx:if="{{sheet}}" bindtap="closeSheet">
-    <view class="sheet" catchtap="noop">
-      <block wx:if="{{sheet === 'day'}}">
-        <view class="title">{{selectedDate}}</view>
-        <view class="item" wx:for="{{dayItems}}" wx:key="id">
-          <view>{{item.title}} {{item.extra}}</view>
-          <view class="row" wx:if="{{item.kind === 'period' && canEditPeriod}}">
-            <view class="chip" data-id="{{item.id}}" bindtap="startPeriod">修改</view>
-            <view class="chip" data-id="{{item.id}}" bindtap="removePeriod">删除</view>
-          </view>
-          <view class="row" wx:if="{{item.kind === 'anniversary' && item.mine}}">
-            <view class="chip" data-id="{{item.id}}" bindtap="startAnniversary">修改</view>
-            <view class="chip" data-id="{{item.id}}" bindtap="removeAnniversary">删除</view>
-          </view>
-          <view class="row" wx:if="{{item.kind === 'schedule' && item.mine}}">
-            <view class="chip" data-id="{{item.id}}" bindtap="startSchedule">修改</view>
-            <view class="chip" data-id="{{item.id}}" bindtap="removeSchedule">删除</view>
-          </view>
+  <view class="sheet-mask" wx:if="{{sheet === 'menu' || sheet === 'day' || almanacOpen}}" bindtap="dismissPop" catchtouchmove="noop"></view>
+  <view class="almanac-sheet" wx:if="{{almanacOpen}}" style="height:{{almanacHeight}}px;transform:translateY({{almanacShift}}px);" bindtouchstart="onAlmanacStart" catchtouchmove="onAlmanacMove" bindtouchend="onAlmanacEnd" catchtap="noop">
+    <view class="grab"></view>
+    <view class="section-title">黄历</view>
+    <view class="almanac">宜 {{todayYi}}</view>
+    <view class="almanac">忌 {{todayJi}}</view>
+    <view class="muted">{{almanacNote || "仅供参考"}}</view>
+    <view class="brief" wx:if="{{brief}}">{{brief}}</view>
+  </view>
+  <view class="pop" wx:if="{{sheet === 'menu'}}" style="left:{{menuLeft}}px;top:{{menuTop}}px;" catchtap="noop">
+    <view class="pop-item {{menuStep >= 1 ? 'show' : ''}}" wx:if="{{canEditPeriod}}" bindtap="startPeriod"><view class="pop-icon heart"></view><text>姨妈</text></view>
+    <view class="pop-item {{menuStep >= 2 ? 'show' : ''}}" bindtap="startAnniversary"><view class="pop-icon mark"></view><text>纪念日</text></view>
+    <view class="pop-item {{menuStep >= 3 ? 'show' : ''}}" bindtap="startBirthday"><view class="pop-icon mark"></view><text>生日</text></view>
+    <view class="pop-item {{menuStep >= 4 ? 'show' : ''}}" bindtap="startSchedule"><view class="pop-icon bell"></view><text>日程提醒</text></view>
+  </view>
+  <view class="day-pop" wx:if="{{sheet === 'day'}}" style="left:{{popLeft}}px;top:{{popTop}}px;height:{{popHeight}}px;transform:translateY({{popShift}}px);" bindtouchstart="onPopStart" bindtouchmove="onPopMove" bindtouchend="onPopEnd" catchtap="noop">
+    <view class="title">{{selectedDate}}</view>
+    <view class="lunar-full" wx:if="{{dayLunar}}">{{dayLunar}}</view>
+    <view class="almanac" wx:if="{{dayYi}}">宜 {{dayYi}}</view>
+    <view class="almanac" wx:if="{{dayJi}}">忌 {{dayJi}}</view>
+    <view class="muted" wx:if="{{dayYi || dayJi}}">黄历仅供参考</view>
+    <view class="item" wx:for="{{dayItems}}" wx:key="id" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openDayItem">
+      <view>{{item.title}} {{item.extra}}</view>
+    </view>
+    <view class="muted" wx:if="{{!dayItems.length}}">这一天还没有记录</view>
+  </view>
+  <view class="mask" wx:if="{{sheet === 'period' || sheet === 'anniversary' || sheet === 'birthday' || sheet === 'schedule' || sheet === 'detail'}}" bindtap="closeSheet">
+    <view class="sheet" wx:if="{{sheet === 'detail'}}" catchtap="noop">
+      <view class="detail-head">
+        <view class="section-title">{{detailTitle}}</view>
+        <view class="tools" wx:if="{{detailKind !== 'period'}}">
+          <view class="tool" bindtap="editDetail">改</view>
+          <view class="tool danger" bindtap="askDelete">删</view>
         </view>
-        <view class="btn" wx:if="{{canEditPeriod}}" bindtap="startPeriod">记姨妈</view>
-        <view class="btn plain" bindtap="startAnniversary">加纪念日</view>
-        <view class="btn plain" bindtap="startSchedule">加日程</view>
-      </block>
+      </view>
+      <view>{{detailLabel}}</view>
+    </view>
+    <view class="sheet" wx:if="{{sheet !== 'detail'}}" catchtap="noop">
 
       <block wx:if="{{sheet === 'period'}}">
         <view class="label">开始日</view>
-        <input data-key="startDate" value="{{form.startDate}}" bindinput="onForm" />
+        <view class="date-line">
+          <input data-key="startDate" value="{{form.startDate}}" placeholder="2026-11-20" bindblur="onForm" />
+          <picker mode="date" value="{{form.startDate}}" data-key="startDate" bindchange="onForm">
+            <view class="cal"></view>
+          </picker>
+        </view>
         <view class="label">结束日</view>
-        <input data-key="endDate" value="{{form.endDate}}" bindinput="onForm" />
+        <view class="date-line">
+          <input data-key="endDate" value="{{form.endDate}}" placeholder="2026-11-24" bindblur="onForm" />
+          <picker mode="date" value="{{form.endDate}}" data-key="endDate" bindchange="onForm">
+            <view class="cal"></view>
+          </picker>
+        </view>
         <view class="label">这一天的流量</view>
         <view class="row">
           <view class="chip {{form.flow === 'light' ? 'on' : ''}}" data-key="flow" data-value="light" bindtap="setForm">少</view>
@@ -85,9 +128,12 @@
 
       <block wx:if="{{sheet === 'anniversary'}}">
         <input data-key="title" value="{{form.title}}" placeholder="纪念日名称" bindinput="onForm" />
-        <view class="row">
-          <input data-key="month" type="number" value="{{form.month}}" placeholder="月" bindinput="onForm" />
-          <input data-key="day" type="number" value="{{form.day}}" placeholder="日" bindinput="onForm" />
+        <view class="label">开始日期</view>
+        <view class="date-line">
+          <input value="{{form.dateText}}" placeholder="2018年11月26日" bindblur="onAnniversaryText" />
+          <picker mode="date" value="{{form.anniversaryDate}}" bindchange="onAnniversaryDate">
+            <view class="cal"></view>
+          </picker>
         </view>
         <view class="row">
           <view class="chip {{form.yearly !== false ? 'on' : ''}}" data-key="yearly" data-value="{{true}}" bindtap="setForm">每年重复</view>
@@ -98,9 +144,45 @@
         <view class="btn" bindtap="saveAnniversary">保存纪念日</view>
       </block>
 
+      <block wx:if="{{sheet === 'birthday'}}">
+        <input data-key="title" value="{{form.title}}" placeholder="是谁的生日" bindinput="onForm" />
+        <view class="row">
+          <view class="chip {{form.calendar !== 'lunar' ? 'on' : ''}}" data-key="calendar" data-value="solar" bindtap="setForm">阳历</view>
+          <view class="chip {{form.calendar === 'lunar' ? 'on' : ''}}" data-key="calendar" data-value="lunar" bindtap="setForm">农历</view>
+        </view>
+        <view class="label">出生日期</view>
+        <view class="date-line" wx:if="{{form.calendar !== 'lunar'}}">
+          <input value="{{form.dateText}}" placeholder="1998年11月26日" bindblur="onAnniversaryText" />
+          <picker mode="date" value="{{form.anniversaryDate}}" bindchange="onAnniversaryDate">
+            <view class="cal"></view>
+          </picker>
+        </view>
+        <picker wx:else mode="multiSelector" range="{{form.birthRange}}" value="{{form.birthIndex}}" bindcolumnchange="onBirthdayColumn" bindchange="onBirthdayLunar">
+          <view class="picker">{{form.dateText || '选择农历生日'}}</view>
+        </picker>
+        <view class="row">
+          <view class="chip {{form.visibility === 'self' ? 'on' : ''}}" data-key="visibility" data-value="self" bindtap="setForm">仅自己可见</view>
+          <view class="chip {{form.visibility !== 'self' ? 'on' : ''}}" data-key="visibility" data-value="both" bindtap="setForm">双方可见</view>
+        </view>
+        <view class="btn" bindtap="saveBirthday">保存生日</view>
+      </block>
+
       <block wx:if="{{sheet === 'schedule'}}">
         <input data-key="title" value="{{form.title}}" placeholder="日程" bindinput="onForm" />
+        <view class="label">日期</view>
+        <view class="date-line">
+          <input data-key="date" value="{{form.date}}" placeholder="2026-11-20" bindblur="onForm" />
+          <picker mode="date" value="{{form.date}}" data-key="date" bindchange="onForm">
+            <view class="cal"></view>
+          </picker>
+        </view>
         <input data-key="note" value="{{form.note}}" placeholder="一句备注" bindinput="onForm" />
+        <view class="label">提醒</view>
+        <view class="row">
+          <view class="chip {{form.remind === 'dayBefore' || !form.remind ? 'on' : ''}}" data-key="remind" data-value="dayBefore" bindtap="setForm">前一天</view>
+          <view class="chip {{form.remind === 'sameDay' ? 'on' : ''}}" data-key="remind" data-value="sameDay" bindtap="setForm">当天</view>
+          <view class="chip {{form.remind === 'none' ? 'on' : ''}}" data-key="remind" data-value="none" bindtap="setForm">不提醒</view>
+        </view>
         <view class="row">
           <view class="chip {{form.visibility === 'self' ? 'on' : ''}}" data-key="visibility" data-value="self" bindtap="setForm">仅自己可见</view>
           <view class="chip {{form.visibility !== 'self' ? 'on' : ''}}" data-key="visibility" data-value="both" bindtap="setForm">双方可见</view>
@@ -109,5 +191,4 @@
       </block>
     </view>
   </view>
-  <tab-bar current="calendar" />
 </view>

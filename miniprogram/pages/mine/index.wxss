@@ -1,37 +1,82 @@
-.label {
-  margin-top: 20rpx;
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.row, .person {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
+.page {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16rpx 32rpx 280rpx;
+}
+
+.card {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 250, 248, 0.82);
+  border-radius: 28rpx;
+  padding: 28rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(227, 154, 168, 0.1);
 }
 
 .person {
-  padding: 16rpx 0;
-  border-top: 1rpx solid #f0e6e1;
-}
-
-.chip {
-  background: #f8d5dc;
-  color: #8a3d48;
-  border-radius: 999rpx;
-  padding: 8rpx 24rpx;
-}
-
-.chip.on {
-  background: #e9899a;
-  color: #fff;
-}
-
-.save {
-  margin-top: 24rpx;
-}
-
-.setting {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 20rpx;
+}
+
+.who {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: 34rpx;
+  color: #5c463f;
+  line-height: 1.4;
+}
+
+.sub {
+  margin-top: 6rpx;
+  font-size: 26rpx;
+  color: #a08b84;
+  line-height: 1.4;
+}
+
+.group {
+  margin: 12rpx 8rpx;
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.mini-heart {
+  width: 28rpx;
+  height: 28rpx;
+  background: #e9899a;
+  transform: rotate(-45deg);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mini-heart::before,
+.mini-heart::after {
+  content: "";
+  position: absolute;
+  width: 28rpx;
+  height: 28rpx;
+  background: #e9899a;
+  border-radius: 50%;
+}
+
+.mini-heart::before {
+  top: -14rpx;
+  left: 0;
+}
+
+.mini-heart::after {
+  left: 14rpx;
+  top: 0;
 }

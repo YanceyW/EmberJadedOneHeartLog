@@ -1,6 +1,3 @@
 {
-  "navigationBarTitleText": "",
-  "usingComponents": {
-    "tab-bar": "/components/tab-bar/index"
-  }
+  "component": true
 }
