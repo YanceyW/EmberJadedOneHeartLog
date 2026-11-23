@@ -1,11 +1,15 @@
 // 小程序入口。云环境只在这里初始化一次。
+const { estimateTabClearance } = require("./utils/layout");
+
 App({
   globalData: {
     env: "ydsglog-d0gvifdry2da871a2",
     session: null,
+    tabClearance: 120,
   },
 
   onLaunch() {
+    this.globalData.tabClearance = estimateTabClearance();
     if (!wx.cloud) {
       console.error("请使用 2.2.3 或以上的基础库以使用云能力");
       return;

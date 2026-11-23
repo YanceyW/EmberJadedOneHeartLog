@@ -4,8 +4,7 @@
     "pages/profile/index",
     "pages/partner/index",
     "pages/settings/index",
-    "pages/soon/index",
-    "pages/ask/index"
+    "pages/soon/index"
   ],
   "window": {
     "navigationBarTitleText": "",

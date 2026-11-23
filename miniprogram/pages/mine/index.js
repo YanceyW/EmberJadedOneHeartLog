@@ -1,13 +1,30 @@
 const app = getApp();
+const { getTabClearance, watchTabClearance } = require("../../utils/layout");
 
 Component({
   data: {
     nickName: "未命名",
     partnerText: "还没有对象",
     later: ["时间日志", "相册", "时光胶囊", "年度回顾", "足迹", "心愿单", "共同菜单"],
+    tabClearance: 120,
+  },
+  lifetimes: {
+    attached() {
+      this.setData({ tabClearance: getTabClearance() });
+      this.unwatchClearance = watchTabClearance((value) => {
+        this.setData({ tabClearance: value });
+      });
+    },
+    detached() {
+      if (this.unwatchClearance) {
+        this.unwatchClearance();
+        this.unwatchClearance = null;
+      }
+    },
   },
   pageLifetimes: {
     show() {
+      this.setData({ tabClearance: getTabClearance() });
       this.load();
     },
   },

@@ -1,13 +1,61 @@
-<view class="page">
-  <scroll-view class="talk" scroll-y scroll-into-view="{{writing ? 'end' : ''}}">
-    <view class="bubble {{item.role}}" wx:for="{{messages}}" wx:key="id" id="{{index === messages.length - 1 ? 'end' : ''}}">
-      <view class="ai-badge" wx:if="{{item.role === 'ai'}}">AI</view>
-      <view>{{item.role === 'ai' ? item.shown : item.text}}</view>
+<view class="ask-page">
+  <view class="head">
+    <view class="title">聊天</view>
+    <view class="tool-wrap">
+      <view class="tool-btn" bindtap="openSettings" hover-class="tool-btn-on">
+        <view class="glyph">
+          <view class="memo">
+            <view class="line"></view>
+            <view class="line short"></view>
+          </view>
+        </view>
+      </view>
+      <view class="tool-btn" bindtap="startDelete" hover-class="tool-btn-on">
+        <view class="glyph">
+          <view wx:if="{{selecting}}" class="close"></view>
+          <view wx:else class="trash">
+            <view class="lid"></view>
+            <view class="can"></view>
+          </view>
+        </view>
+      </view>
     </view>
+  </view>
+
+  <scroll-view class="talk" scroll-y enhanced show-scrollbar="{{false}}" scroll-into-view="{{scrollInto}}" upper-threshold="80" bindscrolltoupper="loadOlder">
+    <view class="talk-pad"></view>
+    <view class="day" wx:if="{{hasMore}}">继续向上查看更早的记录</view>
+    <view wx:for="{{messages}}" wx:key="id" id="m-{{item.id}}">
+      <view class="day" wx:if="{{item.showDay}}">{{item.dayText}}</view>
+      <view class="pair {{selecting && picked[item.id] ? 'on' : ''}}" data-id="{{item.id}}" bindtap="onPair">
+        <view class="check" wx:if="{{selecting}}">{{picked[item.id] ? '✓' : ''}}</view>
+        <view class="stack">
+          <view class="bubble user">{{item.question}}</view>
+          <view class="bubble ai">
+            <view class="ai-badge">AI</view>
+            <view>{{item.shown}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view id="end"></view>
   </scroll-view>
-  <view class="composer">
-    <view class="muted">今天还可以问 {{remaining}} 句</view>
-    <input value="{{question}}" placeholder="想问今天怎么运势怎么样" bindinput="onQuestion" />
-    <view class="btn send" bindtap="send">发送</view>
+
+  <view class="footer" style="padding-bottom: {{tabClearance}}px;">
+    <view wx:if="{{selecting}}" class="confirm" bindtap="confirmDelete">删除所选 {{pickedCount}}</view>
+    <view wx:else class="composer">
+      <input class="ask-input" value="{{question}}" placeholder="想问今天怎么样" confirm-type="send" bindinput="onQuestion" bindconfirm="send" />
+      <view class="send-btn {{writing ? 'off' : ''}}" bindtap="send" hover-class="send-btn-on">
+        <view class="send-icon"></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="mask" wx:if="{{settingsOpen}}" bindtap="closeSettings">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">记忆</view>
+      <textarea value="{{memoryText}}" maxlength="400" placeholder="还没有记住的事" bindinput="onMemory" />
+      <view class="btn send" bindtap="saveSettings">保存记忆</view>
+    </view>
   </view>
 </view>

@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page" style="padding-bottom: {{tabClearance}}px;">
   <view class="filter-mask" wx:if="{{showFilter}}" bindtap="toggleFilter"></view>
   <view class="head">
     <view class="arrow" data-step="-1" bindtap="shiftMonth">‹</view>
@@ -84,17 +84,17 @@
     <view class="muted" wx:if="{{!dayItems.length}}">这一天还没有记录</view>
   </view>
   <view class="mask" wx:if="{{sheet === 'period' || sheet === 'anniversary' || sheet === 'birthday' || sheet === 'schedule' || sheet === 'detail'}}" bindtap="closeSheet">
-    <view class="sheet" wx:if="{{sheet === 'detail'}}" catchtap="noop">
+    <view class="sheet" wx:if="{{sheet === 'detail'}}" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
       <view class="detail-head">
         <view class="section-title">{{detailTitle}}</view>
-        <view class="tools" wx:if="{{detailKind !== 'period'}}">
+        <view class="tools" wx:if="{{canManage}}">
           <view class="tool" bindtap="editDetail">改</view>
           <view class="tool danger" bindtap="askDelete">删</view>
         </view>
       </view>
       <view>{{detailLabel}}</view>
     </view>
-    <view class="sheet" wx:if="{{sheet !== 'detail'}}" catchtap="noop">
+    <view class="sheet" wx:if="{{sheet !== 'detail'}}" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
 
       <block wx:if="{{sheet === 'period'}}">
         <view class="label">开始日</view>

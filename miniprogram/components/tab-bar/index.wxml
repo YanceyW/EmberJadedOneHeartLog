@@ -1,7 +1,9 @@
-<view class="bar">
-  <view class="slider" style="transform: translateX({{current * 100}}%);"></view>
+<view class="bar" style="left: {{edgeGap}}px; right: {{edgeGap}}px; bottom: {{edgeGap}}px;">
+  <view class="slider" wx:if="{{showSlider}}" style="transform: translateX({{slot * 100}}%);"></view>
   <view class="item {{current === 0 ? 'on' : ''}}" data-index="0" bindtap="go">首页</view>
   <view class="item {{current === 1 ? 'on' : ''}}" data-index="1" bindtap="go">日历</view>
-  <view class="item {{current === 2 ? 'on' : ''}}" data-index="2" bindtap="go">记录</view>
-  <view class="item {{current === 3 ? 'on' : ''}}" data-index="3" bindtap="go">我</view>
+  <view class="gap"></view>
+  <view class="item {{current === 3 ? 'on' : ''}}" data-index="3" bindtap="go">记录</view>
+  <view class="item {{current === 4 ? 'on' : ''}}" data-index="4" bindtap="go">我</view>
+  <view class="ai {{current === 2 ? 'on' : ''}}" catchtap="openAsk">AI</view>
 </view>

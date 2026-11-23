@@ -1,6 +1,7 @@
 const app = getApp();
 const { buildMarks } = require("../../utils/cycle");
 const { addDays, anniversaryOn, anniversaryIndex, chineseDate, diffDays, displayDate, pad, todayString } = require("../../utils/date");
+const { getTabClearance, watchTabClearance } = require("../../utils/layout");
 
 function readChineseDate(text) {
   const matched = /(\d{4})\D+(\d{1,2})\D+(\d{1,2})/.exec(String(text || ""));
@@ -52,6 +53,7 @@ Component({
     almanacOpen: false,
     almanacHeight: 320,
     almanacShift: 0,
+    tabClearance: 120,
   },
   properties: {
     active: {
@@ -66,6 +68,20 @@ Component({
       }
     },
   },
+  lifetimes: {
+    attached() {
+      this.setData({ tabClearance: getTabClearance() });
+      this.unwatchClearance = watchTabClearance((value) => {
+        this.setData({ tabClearance: value });
+      });
+    },
+    detached() {
+      if (this.unwatchClearance) {
+        this.unwatchClearance();
+        this.unwatchClearance = null;
+      }
+    },
+  },
   pageLifetimes: {
     show() {
       this.onShow();
@@ -73,6 +89,7 @@ Component({
   },
   methods: {
   onShow() {
+    this.setData({ tabClearance: getTabClearance() });
     if (!this.year) {
       const now = new Date();
       this.year = now.getFullYear();
@@ -553,11 +570,7 @@ Component({
   openDayItem(event) {
     const kind = event.currentTarget.dataset.kind;
     const id = event.currentTarget.dataset.id;
-    if (kind === "period") {
-      this.startPeriod();
-      return;
-    }
-    if (kind !== "anniversary" && kind !== "schedule" && kind !== "birthday") {
+    if (kind !== "period" && kind !== "anniversary" && kind !== "schedule" && kind !== "birthday") {
       return;
     }
     const item = (this.data.dayItems || []).find((entry) => entry.id === id) || {};
@@ -567,11 +580,12 @@ Component({
       detailKind: kind,
       detailTitle: item.title || "",
       detailLabel: item.extra || this.data.selectedDate,
+      canManage: true,
     });
   },
 
   openRecords() {
-    this.triggerEvent("jumpto", { index: 2 });
+    this.triggerEvent("jumpto", { index: 3 });
   },
 
   openUpcoming(event) {
@@ -587,11 +601,16 @@ Component({
       detailKind: kind,
       detailTitle: item.title,
       detailLabel: item.label,
+      canManage: item.id !== "period",
     });
   },
 
   editDetail() {
     const event = { currentTarget: { dataset: { id: this.data.detailId } } };
+    if (this.data.detailKind === "period") {
+      this.startPeriod(event);
+      return;
+    }
     if (this.data.detailKind === "anniversary") {
       this.startAnniversary(event);
       return;
@@ -606,7 +625,7 @@ Component({
   },
 
   askDelete() {
-    const name = { anniversary: "纪念日", birthday: "生日", schedule: "日程" }[this.data.detailKind] || "记录";
+    const name = { anniversary: "纪念日", birthday: "生日", period: "经期", schedule: "日程" }[this.data.detailKind] || "记录";
     wx.showModal({
       title: "要删除吗",
       content: `要删除这个${name}吗`,
@@ -619,7 +638,7 @@ Component({
   },
 
   async removeDetail() {
-    const action = { anniversary: "deleteAnniversary", birthday: "deleteBirthday", schedule: "deleteSchedule" }[this.data.detailKind];
+    const action = { anniversary: "deleteAnniversary", birthday: "deleteBirthday", period: "deletePeriod", schedule: "deleteSchedule" }[this.data.detailKind];
     const result = await app.call(action, { id: this.data.detailId });
     this.afterSave(result);
   },
@@ -628,16 +647,19 @@ Component({
     this.setData({ sheet: "", popShift: 0 });
   },
 
-  startPeriod() {
+  startPeriod(event) {
     if (!this.data.canEditPeriod) {
       wx.showToast({ title: "当前不能记录经期", icon: "none" });
       return;
     }
     const owner = this.ownerProfile();
     const length = (owner && owner.periodLength) || 5;
-    const existing = (this.session.periods || []).find(
-      (item) => item.startDate <= this.data.selectedDate && item.endDate >= this.data.selectedDate
-    );
+    const id = event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.id;
+    const existing = id
+      ? (this.session.periods || []).find((item) => item._id === id)
+      : (this.session.periods || []).find(
+          (item) => item.startDate <= this.data.selectedDate && item.endDate >= this.data.selectedDate
+        );
     this.setData({
       sheet: "period",
       form: existing

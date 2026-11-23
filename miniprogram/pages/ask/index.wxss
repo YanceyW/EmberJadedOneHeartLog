@@ -1,20 +1,215 @@
-.page {
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 与其余 tab 面板一样，挂在主页里，共用系统导航和底栏 */
+.ask-page {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
-  padding-bottom: 24rpx;
+  background: #fff7f4;
+  padding: 16rpx 32rpx 0;
+  overflow: hidden;
+}
+
+/* 顶栏对齐日历：居中标题 + 右侧工具 */
+.head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72rpx;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  background: #fff7f4;
+  z-index: 2;
+}
+
+.head .title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #5c463f;
+}
+
+.tool-wrap {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 16;
+  display: flex;
+  align-items: center;
+}
+
+.tool-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-btn-on {
+  opacity: 0.55;
+}
+
+/* 外框固定 36×36，两枚图标同一中线；颜色线条跟日历筛选一致 */
+.glyph {
+  width: 36rpx;
+  height: 36rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.memo {
+  width: 28rpx;
+  height: 34rpx;
+  border: 4rpx solid #e9899a;
+  border-radius: 6rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6rpx;
+  padding: 0 4rpx;
+}
+
+.memo .line {
+  width: 100%;
+  height: 4rpx;
+  border-radius: 4rpx;
+  background: #e9899a;
+}
+
+.memo .line.short {
+  width: 70%;
+}
+
+.trash {
+  width: 28rpx;
+  height: 34rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  box-sizing: border-box;
+}
+
+.trash .lid {
+  width: 28rpx;
+  height: 4rpx;
+  border-radius: 4rpx;
+  background: #e9899a;
+  position: relative;
+}
+
+.trash .lid::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -6rpx;
+  width: 12rpx;
+  height: 4rpx;
+  margin-left: -6rpx;
+  border-radius: 4rpx;
+  background: #e9899a;
+}
+
+.trash .can {
+  width: 22rpx;
+  height: 20rpx;
+  border: 4rpx solid #e9899a;
+  border-top: none;
+  border-radius: 0 0 6rpx 6rpx;
+  box-sizing: border-box;
+}
+
+.close {
+  width: 28rpx;
+  height: 28rpx;
+  position: relative;
+}
+
+.close::before,
+.close::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28rpx;
+  height: 4rpx;
+  margin-left: -14rpx;
+  margin-top: -2rpx;
+  background: #e9899a;
+  border-radius: 4rpx;
+}
+
+.close::before {
+  transform: rotate(45deg);
+}
+
+.close::after {
+  transform: rotate(-45deg);
 }
 
 .talk {
   flex: 1;
   height: 0;
-  padding: 24rpx 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.talk-pad {
+  height: 8rpx;
+}
+
+.day {
+  margin: 8rpx 0 24rpx;
+  padding: 4rpx 0;
+  text-align: center;
+  color: #a08b84;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.pair {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin: 0 0 12rpx;
+}
+
+.pair.on .check {
+  background: #e9899a;
+  color: #fff;
+}
+
+.stack {
+  flex: 1;
+  min-width: 0;
+}
+
+.check {
+  width: 40rpx;
+  height: 40rpx;
+  margin-top: 16rpx;
+  border-radius: 50%;
+  border: 2rpx solid #e9899a;
+  text-align: center;
+  line-height: 40rpx;
+  color: transparent;
+  flex-shrink: 0;
 }
 
 .bubble {
-  max-width: 80%;
-  margin: 0 32rpx 20rpx;
+  max-width: 86%;
+  margin-bottom: 16rpx;
   padding: 20rpx 24rpx;
   border-radius: 24rpx;
   line-height: 1.6;
@@ -42,10 +237,106 @@
   border-radius: 8rpx;
 }
 
-.composer {
-  padding: 0 32rpx;
+.footer {
+  flex-shrink: 0;
+  padding: 8rpx 0 0;
+  box-sizing: border-box;
 }
 
-.send {
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.ask-input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 28rpx;
+  margin-top: 0;
+  box-sizing: border-box;
+  background: #fffaf8;
+  border-radius: 999rpx;
+  color: #5c463f;
+  font-size: 28rpx;
+}
+
+.send-btn {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #e9899a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-btn-on {
+  opacity: 0.75;
+}
+
+.send-btn.off {
+  opacity: 0.45;
+}
+
+.send-icon {
+  width: 0;
+  height: 0;
+  margin-left: 4rpx;
+  border-top: 12rpx solid transparent;
+  border-bottom: 12rpx solid transparent;
+  border-left: 20rpx solid #fff;
+}
+
+.confirm {
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #e9899a;
+  color: #fff;
+  text-align: center;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+}
+
+.sheet .send {
+  margin-top: 12rpx;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(92, 70, 63, 0.28);
+  display: flex;
+  align-items: flex-end;
+  z-index: 40;
+}
+
+.sheet {
+  width: 100%;
+  background: #fffaf8;
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 28rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #5c463f;
+}
+
+.sheet textarea {
+  width: 100%;
+  min-height: 240rpx;
   margin-top: 16rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
 }

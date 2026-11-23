@@ -64,6 +64,7 @@ function makeSky(windy) {
 
 Page({
   data: {
+    // 0 首页 / 1 日历 / 2 AI / 3 记录 / 4 我
     current: 0,
     weatherKind: "",
     windy: false,
@@ -95,6 +96,10 @@ Page({
     this.setData({ current: Number(event.detail.index) });
   },
 
+  openAsk() {
+    this.setData({ current: 2 });
+  },
+
   onWeather(event) {
     const windy = !!event.detail.windy;
     this.setData(Object.assign({
@@ -104,3 +109,4 @@ Page({
     }, makeSky(windy)));
   },
 });
+

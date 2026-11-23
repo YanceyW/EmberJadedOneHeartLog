@@ -5,7 +5,7 @@ const https = require("https");
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
-const COLLECTIONS = ["users", "periods", "anniversaries", "birthdays", "schedules", "readings", "asks", "almanacs"];
+const COLLECTIONS = ["users", "periods", "anniversaries", "birthdays", "schedules", "readings", "asks", "almanacs", "memories"];
 const MALE_ROLES = ["男友", "未婚夫", "丈夫"];
 const FEMALE_ROLES = ["女友", "未婚妻", "妻子"];
 const PARTNER_ROLES = MALE_ROLES.concat(FEMALE_ROLES);
@@ -54,7 +54,13 @@ exports.main = async (event) => {
       case "almanac":
         return await almanac(event.date);
       case "listAsks":
-        return await listAsks(OPENID);
+        return await listAsks(OPENID, event);
+      case "deleteAsks":
+        return await deleteAsks(OPENID, event.ids);
+      case "getMemory":
+        return await getMemory(OPENID);
+      case "saveMemory":
+        return await saveMemory(OPENID, event.text);
       case "ask":
         return await ask(OPENID, event.question);
       default:
@@ -926,15 +932,133 @@ async function almanac(date) {
   return { ok: true, yi, ji, note };
 }
 
-async function listAsks(openid) {
-  const date = todayShanghai();
-  const found = await db.collection("asks").where({ openid, date }).limit(20).get();
-  const items = found.data.slice().sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
+async function listAsks(openid, event) {
+  const before = Number(event && event.before) || 0;
+  const _ = db.command;
+  const where = before ? { openid, createdAt: _.lt(before) } : { openid };
+  const all = [];
+  let skip = 0;
+  while (skip < 2000) {
+    const found = await db.collection("asks").where(where).skip(skip).limit(100).get();
+    all.push(...found.data);
+    if (found.data.length < 100) {
+      break;
+    }
+    skip += found.data.length;
+  }
+  // 体验版先不限制每天提问次数，不再统计 remaining。
+  // const today = todayShanghai();
+  // const todayCount = before
+  //   ? (await db.collection("asks").where({ openid, date: today }).count()).total
+  //   : all.filter((item) => item.date === today).length;
+  all.sort((left, right) => (right.createdAt || 0) - (left.createdAt || 0));
+  const picked = [];
+  let size = 0;
+  for (let index = 0; index < all.length; index += 1) {
+    const item = all[index];
+    const weight = String(item.question || "").length + String(item.answer || "").length;
+    if (picked.length && size + weight > 6000) {
+      break;
+    }
+    picked.push(item);
+    size += weight;
+  }
+  picked.sort((left, right) => (left.createdAt || 0) - (right.createdAt || 0));
   return {
     ok: true,
-    items: items.map((item) => ({ question: item.question, answer: item.answer })),
-    remaining: Math.max(0, 10 - items.length),
+    hasMore: picked.length < all.length,
+    items: picked.map((item) => ({
+      id: item._id,
+      date: item.date || "",
+      createdAt: item.createdAt || 0,
+      question: item.question,
+      answer: item.answer,
+    })),
+    // remaining: Math.max(0, 10 - todayCount),
   };
+}
+
+async function deleteAsks(openid, ids) {
+  const list = Array.isArray(ids) ? ids.filter(Boolean).slice(0, 50) : [];
+  await Promise.all(list.map(async (id) => {
+    try {
+      const current = await db.collection("asks").doc(id).get();
+      if (current.data && current.data.openid === openid) {
+        await db.collection("asks").doc(id).remove();
+      }
+    } catch (error) {
+      console.error("删除聊天记录失败", id, error);
+    }
+  }));
+  return { ok: true };
+}
+
+async function readMemory(openid) {
+  const found = await db.collection("memories").where({ openid }).limit(1).get();
+  return found.data[0] || null;
+}
+
+async function writeMemory(openid, text) {
+  const clean = String(text || "").trim().slice(0, 400);
+  const existing = await readMemory(openid);
+  if (!clean) {
+    if (existing) {
+      await db.collection("memories").doc(existing._id).remove();
+    }
+    return "";
+  }
+  if (existing) {
+    await db.collection("memories").doc(existing._id).update({
+      data: { text: clean, updatedAt: Date.now() },
+    });
+  } else {
+    await db.collection("memories").add({
+      data: { openid, text: clean, createdAt: Date.now(), updatedAt: Date.now() },
+    });
+  }
+  return clean;
+}
+
+async function getMemory(openid) {
+  const existing = await readMemory(openid);
+  return { ok: true, text: existing ? existing.text || "" : "" };
+}
+
+async function saveMemory(openid, text) {
+  const saved = await writeMemory(openid, text);
+  return { ok: true, text: saved };
+}
+
+function wantsRemember(text) {
+  return /记住|记一下|帮我记住|别忘了/.test(text);
+}
+
+async function rewriteMemory(openid, sentence) {
+  const key = deepSeekKey();
+  if (!key) {
+    return;
+  }
+  const existing = await readMemory(openid);
+  const result = await postJson(
+    "https://api.deepseek.com/chat/completions",
+    { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    {
+      model: "deepseek-chat",
+      temperature: 0.2,
+      messages: [
+        {
+          role: "system",
+          content: "你负责维护一段个人记忆。把新事实补进已有记忆。同一件事以新的为准，删掉被替代的旧说法。只输出记忆正文，不超过400字，不要解释。",
+        },
+        {
+          role: "user",
+          content: `已有记忆：\n${existing && existing.text ? existing.text : "无"}\n\n新的要求：\n${sentence}`,
+        },
+      ],
+    }
+  );
+  const text = result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content;
+  await writeMemory(openid, text);
 }
 
 async function ask(openid, question) {
@@ -947,10 +1071,19 @@ async function ask(openid, question) {
     throw new Error("先填写生日，再来问");
   }
   const date = todayShanghai();
-  const count = await db.collection("asks").where({ openid, date }).count();
-  if (count.total >= 10) {
-    throw new Error("今天的提问已经用完了");
+  // 体验版先不限制每天提问次数。
+  // const count = await db.collection("asks").where({ openid, date }).count();
+  // if (count.total >= 10) {
+  //   throw new Error("今天的提问已经用完了");
+  // }
+  if (wantsRemember(text)) {
+    try {
+      await rewriteMemory(openid, text);
+    } catch (error) {
+      console.error("更新记忆失败", error);
+    }
   }
+  const memory = await readMemory(openid);
   const reading = await db.collection("readings").where({ openid, date, promptVersion: PROMPT_VERSION }).limit(1).get();
   const lines = reading.data[0] ? reading.data[0].lines.join("\n") : "";
   const earlier = await db.collection("asks").where({ openid, date }).limit(20).get();
@@ -974,7 +1107,7 @@ async function ask(openid, question) {
       temperature: 0.7,
       messages: [
         { role: "system", content: "你是炎都拾光里的生活助手。综合五行、星座、八字和紫微斗数，用几句温和的中文回答。不要写成医疗建议。不要写出出生年月日、时辰或出生地。不要输出 JSON。" },
-        { role: "user", content: `今天的建议是：\n${lines}` },
+        { role: "user", content: `需要记住的信息：\n${memory && memory.text ? memory.text : "无"}\n\n今天的建议是：\n${lines}` },
       ].concat(history, [{ role: "user", content: text }]),
     }
   );
@@ -985,5 +1118,5 @@ async function ask(openid, question) {
   await db.collection("asks").add({
     data: { openid, date, question: text, answer: answer.trim(), createdAt: Date.now() },
   });
-  return { ok: true, answer: answer.trim(), remaining: Math.max(0, 10 - earlier.data.length - 1) };
+  return { ok: true, answer: answer.trim() /*, remaining: Math.max(0, 10 - earlier.data.length - 1) */ };
 }

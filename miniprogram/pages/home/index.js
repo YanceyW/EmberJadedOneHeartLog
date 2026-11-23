@@ -3,6 +3,7 @@ const { buildMarks } = require("../../utils/cycle");
 const { addDays, anniversaryOn, anniversaryIndex, diffDays, displayDate, solarTermName, SOLAR_FESTIVALS, todayString } = require("../../utils/date");
 const { solarToLunar } = require("../../utils/lunar");
 const { birthdayPhrase } = require("../../utils/birthday");
+const { getTabClearance, watchTabClearance } = require("../../utils/layout");
 
 const LUNAR_FESTIVALS = {
   "1-1": "春节",
@@ -45,6 +46,7 @@ Component({
     needCity: false,
     cityName: "",
     region: ["北京市", "北京市", "东城区"],
+    tabClearance: 120,
   },
   properties: {
     active: {
@@ -59,6 +61,20 @@ Component({
       }
     },
   },
+  lifetimes: {
+    attached() {
+      this.setData({ tabClearance: getTabClearance() });
+      this.unwatchClearance = watchTabClearance((value) => {
+        this.setData({ tabClearance: value });
+      });
+    },
+    detached() {
+      if (this.unwatchClearance) {
+        this.unwatchClearance();
+        this.unwatchClearance = null;
+      }
+    },
+  },
   pageLifetimes: {
     show() {
       this.onShow();
@@ -66,6 +82,7 @@ Component({
   },
   methods: {
   onShow() {
+    this.setData({ tabClearance: getTabClearance() });
     this.setGreeting();
     this.load();
   },
@@ -196,7 +213,7 @@ Component({
   },
 
   openAsk() {
-    wx.navigateTo({ url: "/pages/ask/index" });
+    this.triggerEvent("ask");
   },
 
   readCache() {

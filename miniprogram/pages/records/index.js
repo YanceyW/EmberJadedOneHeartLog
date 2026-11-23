@@ -2,6 +2,7 @@ const app = getApp();
 const { anniversaryIndex, anniversaryOn, chineseDate, diffDays, displayDate, pad, todayString } = require("../../utils/date");
 const { birthdayPhrase } = require("../../utils/birthday");
 const { birthFrom, birthText, buildBirth, indexFromBirth } = require("../../utils/lunar");
+const { getTabClearance, watchTabClearance } = require("../../utils/layout");
 
 const TYPES = [
   { key: "anniversary", name: "纪念日" },
@@ -46,6 +47,7 @@ Component({
     sheet: "",
     form: {},
     canSeePeriod: false,
+    tabClearance: 120,
   },
   properties: {
     active: {
@@ -60,8 +62,23 @@ Component({
       }
     },
   },
+  lifetimes: {
+    attached() {
+      this.setData({ tabClearance: getTabClearance() });
+      this.unwatchClearance = watchTabClearance((value) => {
+        this.setData({ tabClearance: value });
+      });
+    },
+    detached() {
+      if (this.unwatchClearance) {
+        this.unwatchClearance();
+        this.unwatchClearance = null;
+      }
+    },
+  },
   pageLifetimes: {
     show() {
+      this.setData({ tabClearance: getTabClearance() });
       this.load();
     },
   },
@@ -147,7 +164,28 @@ Component({
         const gap = rank(today, left.date) - rank(today, right.date);
         return gap || order[left.kind] - order[right.kind];
       });
-      this.setData({ rows: visible });
+      let lastHead = "";
+      const grouped = visible.map((item) => {
+        const head = sortMode === "type" ? item.kindName : this.dateHead(item.date, today);
+        const showHead = head !== lastHead;
+        lastHead = head;
+        return { ...item, key: `${item.kind}-${item.id}`, head, showHead };
+      });
+      this.setData({ rows: grouped });
+    },
+
+    dateHead(date, today) {
+      if (!date) {
+        return "日期未定";
+      }
+      if (date === today) {
+        return "今天";
+      }
+      const [year, month, day] = date.split("-");
+      if (year === today.slice(0, 4)) {
+        return `${Number(month)}月${Number(day)}日`;
+      }
+      return `${year}年${Number(month)}月${Number(day)}日`;
     },
 
     saveView() {
@@ -338,7 +376,7 @@ Component({
     },
 
     askDelete() {
-      const name = { anniversary: "纪念日", birthday: "生日", schedule: "日程" }[this.data.sheet] || "记录";
+      const name = { anniversary: "纪念日", birthday: "生日", period: "经期", schedule: "日程" }[this.data.sheet] || "记录";
       wx.showModal({
         title: "要删除吗",
         content: `要删除这个${name}吗`,
@@ -349,7 +387,7 @@ Component({
     },
 
     async removeCurrent() {
-      const action = { anniversary: "deleteAnniversary", birthday: "deleteBirthday", schedule: "deleteSchedule" }[this.data.sheet];
+      const action = { anniversary: "deleteAnniversary", birthday: "deleteBirthday", period: "deletePeriod", schedule: "deleteSchedule" }[this.data.sheet];
       this.afterSave(await app.call(action, { id: this.data.form.id }));
     },
 

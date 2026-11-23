@@ -9,7 +9,7 @@
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 16rpx 32rpx 280rpx;
+  padding: 16rpx 32rpx 0;
 }
 
 .card {
@@ -17,6 +17,13 @@
   border-radius: 32rpx;
   padding: 28rpx;
   margin-bottom: 20rpx;
+}
+
+.group-title {
+  margin: 28rpx 8rpx 12rpx;
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #5c463f;
 }
 
 .section-title,
@@ -76,7 +83,7 @@
   width: 100%;
   background: #fffaf8;
   border-radius: 36rpx 36rpx 0 0;
-  padding: 28rpx 28rpx calc(48rpx + env(safe-area-inset-bottom));
+  padding: 28rpx 28rpx 0;
   box-sizing: border-box;
 }
 

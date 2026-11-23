@@ -5,6 +5,7 @@
     "calendar-panel": "/pages/calendar/index",
     "records-panel": "/pages/records/index",
     "mine-panel": "/pages/mine/index",
+    "ask-panel": "/pages/ask/index",
     "tab-bar": "/components/tab-bar/index"
   }
 }

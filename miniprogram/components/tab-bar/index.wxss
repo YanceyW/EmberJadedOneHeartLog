@@ -1,8 +1,6 @@
 .bar {
   position: fixed;
-  left: 32rpx;
-  right: 32rpx;
-  bottom: calc(12rpx + env(safe-area-inset-bottom) * 0.28);
+  /* left / right / bottom 由 JS 写成同一 edgeGap，保证各机型三边等距 */
   height: 88rpx;
   display: flex;
   align-items: center;
@@ -18,7 +16,7 @@
   position: absolute;
   left: 8rpx;
   top: 8rpx;
-  width: calc((100% - 16rpx) / 4);
+  width: calc((100% - 16rpx) / 5);
   height: 72rpx;
   border-radius: 999rpx;
   background: #f8d5dc;
@@ -40,4 +38,31 @@
 .item.on {
   color: #8a3d48;
   font-weight: 600;
+}
+
+.gap {
+  flex: 1;
+}
+
+.ai {
+  position: absolute;
+  left: 50%;
+  top: -36rpx;
+  width: 104rpx;
+  height: 104rpx;
+  margin-left: -52rpx;
+  border-radius: 50%;
+  background: #e9899a;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 10rpx 24rpx rgba(233, 137, 154, 0.45);
+}
+
+.ai.on {
+  transform: scale(1.04);
 }
