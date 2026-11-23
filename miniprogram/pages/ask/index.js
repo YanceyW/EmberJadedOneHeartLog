@@ -251,6 +251,25 @@ Component({
       this.setData({ memoryText: event.detail.value });
     },
 
+    clearMemory() {
+      wx.showModal({
+        title: "要清空吗",
+        content: "清空后，AI 就不再参考这段记忆",
+        success: async (res) => {
+          if (!res.confirm) {
+            return;
+          }
+          const result = await app.call("saveMemory", { text: "" });
+          if (!result.ok) {
+            wx.showToast({ title: result.message, icon: "none" });
+            return;
+          }
+          this.setData({ memoryText: "", settingsOpen: false });
+          wx.showToast({ title: "已清空" });
+        },
+      });
+    },
+
     async saveSettings() {
       const result = await app.call("saveMemory", { text: this.data.memoryText });
       if (!result.ok) {

@@ -98,10 +98,6 @@
   justify-content: space-between;
 }
 
-.date-line input {
-  flex: 1;
-}
-
 .tool.danger {
   width: 64rpx;
   height: 64rpx;
@@ -117,8 +113,24 @@
   background: #e9899a;
   color: #fff;
   border-radius: 999rpx;
+  font-size: 30rpx;
   line-height: 80rpx;
   text-align: center;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.sheet input,
+.sheet textarea,
+.date-line input {
+  flex: 1;
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+  color: #5c463f;
+  box-sizing: border-box;
 }
 
 .picker {

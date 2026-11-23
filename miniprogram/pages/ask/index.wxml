@@ -52,10 +52,16 @@
   </view>
 
   <view class="mask" wx:if="{{settingsOpen}}" bindtap="closeSettings">
-    <view class="sheet" catchtap="noop">
-      <view class="sheet-title">记忆</view>
-      <textarea value="{{memoryText}}" maxlength="400" placeholder="还没有记住的事" bindinput="onMemory" />
-      <view class="btn send" bindtap="saveSettings">保存记忆</view>
+    <view class="sheet" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
+      <view class="detail-head">
+        <view class="section-title">记忆</view>
+        <view class="tool danger" wx:if="{{memoryText}}" bindtap="clearMemory">清空</view>
+      </view>
+      <view class="muted tip">聊天里说「记住」「记一下」时，会写进这里。AI 回答时会参考这段话。</view>
+      <view class="label">要记住的事</view>
+      <textarea class="memo-box" value="{{memoryText}}" maxlength="400" placeholder="还没有记住的事，比如口味、作息、不想被提醒的事" bindinput="onMemory" />
+      <view class="count muted">{{memoryText.length || 0}} / 400</view>
+      <view class="btn" bindtap="saveSettings">保存记忆</view>
     </view>
   </view>
 </view>

@@ -484,7 +484,19 @@
   color: #fff;
 }
 
-.sheet .btn, .sheet .label {
+.muted {
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.label {
+  margin-top: 16rpx;
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.sheet .btn,
+.sheet .label {
   margin-top: 16rpx;
 }
 
@@ -497,14 +509,29 @@
   text-align: center;
 }
 
+.btn:active {
+  transform: scale(0.97);
+}
+
 .date-line {
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
 
-.date-line input {
+.date-line input,
+.sheet input,
+.sheet textarea {
   flex: 1;
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+  color: #5c463f;
+  box-sizing: border-box;
+}
+
+.date-line input {
+  margin-top: 0;
 }
 
 .cal {

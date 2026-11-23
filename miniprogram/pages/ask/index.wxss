@@ -301,10 +301,6 @@
   font-size: 30rpx;
 }
 
-.sheet .send {
-  margin-top: 12rpx;
-}
-
 .mask {
   position: fixed;
   left: 0;
@@ -314,29 +310,108 @@
   background: rgba(92, 70, 63, 0.28);
   display: flex;
   align-items: flex-end;
-  z-index: 40;
+  z-index: 80;
+  animation: maskin 0.25s ease;
 }
 
 .sheet {
   width: 100%;
   background: #fffaf8;
   border-radius: 36rpx 36rpx 0 0;
-  padding: 28rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  padding: 28rpx 28rpx 0;
   box-sizing: border-box;
+  max-height: 80vh;
+  overflow: auto;
+  position: relative;
+  z-index: 81;
+  animation: slideup 0.32s ease;
 }
 
-.sheet-title {
-  font-size: 34rpx;
+.detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.section-title {
+  font-size: 40rpx;
   font-weight: 600;
   color: #5c463f;
+  margin-bottom: 8rpx;
 }
 
-.sheet textarea {
-  width: 100%;
-  min-height: 240rpx;
+.tool {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  background: #f8d5dc;
+  color: #8a3d48;
+  flex-shrink: 0;
+  font-size: 26rpx;
+}
+
+.tool.danger {
+  background: #e9899a;
+  color: #fff;
+}
+
+.tip {
+  margin: 4rpx 0 8rpx;
+  line-height: 1.5;
+}
+
+.label {
   margin-top: 16rpx;
-  background: #fff;
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.memo-box {
+  width: 100%;
+  min-height: 280rpx;
+  margin-top: 12rpx;
+  background: #fff7f4;
   border-radius: 20rpx;
-  padding: 16rpx;
+  padding: 16rpx 20rpx;
   box-sizing: border-box;
+  color: #5c463f;
+  font-size: 30rpx;
+  line-height: 1.6;
+}
+
+.count {
+  margin-top: 8rpx;
+  text-align: right;
+}
+
+.muted {
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.btn {
+  margin-top: 16rpx;
+  background: #e9899a;
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  line-height: 80rpx;
+  text-align: center;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+@keyframes maskin {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideup {
+  from { transform: translateY(48rpx); }
+  to { transform: translateY(0); }
 }
