@@ -51,12 +51,17 @@ function estimateTabClearance() {
  * @returns {number}
  */
 function clearanceFromTop(top) {
+  const estimate = estimateTabClearance();
   const info = readWindow();
   const windowHeight = info.windowHeight || 667;
   if (typeof top !== "number" || !(top >= 0)) {
-    return estimateTabClearance();
+    return estimate;
   }
-  return Math.ceil(Math.max(0, windowHeight - top) + 16);
+  const raw = Math.ceil(Math.max(0, windowHeight - top) + 8);
+  if (raw < 72 || raw > estimate + 20) {
+    return estimate;
+  }
+  return raw;
 }
 
 /**

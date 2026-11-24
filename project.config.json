@@ -23,7 +23,7 @@
     "useApiHook": true,
     "useApiHostProcess": true,
     "babelSetting": {
-      "ignore": [],
+      "ignore": ["utils/lunar-lib.js"],
       "disablePlugins": [],
       "outputPath": ""
     },

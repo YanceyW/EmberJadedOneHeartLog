@@ -1,10 +1,12 @@
-<view class="page" style="padding-bottom: {{tabClearance}}px;">
+<scroll-view class="page" scroll-y enhanced show-scrollbar="{{false}}">
+  <view class="records-head">
   <view class="row">
     <view class="chip {{shown[item.key] ? 'on' : ''}}" wx:for="{{types}}" wx:key="key" data-key="{{item.key}}" bindtap="toggleType">{{item.name}}</view>
   </view>
   <view class="row">
     <view class="chip {{sortMode === 'date' ? 'on' : ''}}" data-mode="date" bindtap="setSort">按日期</view>
     <view class="chip {{sortMode === 'type' ? 'on' : ''}}" data-mode="type" bindtap="setSort">按类型</view>
+  </view>
   </view>
   <block wx:for="{{rows}}" wx:key="key">
     <view class="group-title" wx:if="{{item.showHead}}">{{item.head}}</view>
@@ -15,6 +17,7 @@
     </view>
   </block>
   <view class="muted empty" wx:if="{{!rows.length}}">这里还没有记录</view>
+  <view style="height: {{tabClearance}}px;"></view>
 
   <view class="mask" wx:if="{{sheet}}" bindtap="closeSheet">
     <view class="sheet" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
@@ -25,24 +28,24 @@
       <block wx:if="{{sheet === 'period'}}">
         <view class="label">开始日</view>
         <view class="date-line">
-          <input data-key="startDate" value="{{form.startDate}}" placeholder="2026-11-20" bindblur="onForm" />
+          <input class="field" data-key="startDate" value="{{form.startDate}}" placeholder="2026-11-20" bindblur="onForm" />
           <picker mode="date" value="{{form.startDate}}" data-key="startDate" bindchange="onForm"><view class="cal"></view></picker>
         </view>
         <view class="label">结束日</view>
         <view class="date-line">
-          <input data-key="endDate" value="{{form.endDate}}" placeholder="2026-11-24" bindblur="onForm" />
+          <input class="field" data-key="endDate" value="{{form.endDate}}" placeholder="2026-11-24" bindblur="onForm" />
           <picker mode="date" value="{{form.endDate}}" data-key="endDate" bindchange="onForm"><view class="cal"></view></picker>
         </view>
         <view class="btn" bindtap="savePeriod">保存经期</view>
       </block>
       <block wx:if="{{sheet === 'birthday'}}">
-        <input data-key="title" value="{{form.title}}" placeholder="是谁的生日" bindinput="onForm" />
+        <input class="field" data-key="title" value="{{form.title}}" placeholder="是谁的生日" bindinput="onForm" />
         <view class="row">
           <view class="chip {{form.calendar !== 'lunar' ? 'on' : ''}}" data-key="calendar" data-value="solar" bindtap="setForm">阳历</view>
           <view class="chip {{form.calendar === 'lunar' ? 'on' : ''}}" data-key="calendar" data-value="lunar" bindtap="setForm">农历</view>
         </view>
         <view class="date-line" wx:if="{{form.calendar !== 'lunar'}}">
-          <input value="{{form.dateText}}" placeholder="1998年11月26日" bindblur="onAnniversaryText" />
+          <input class="field" value="{{form.dateText}}" placeholder="1998年11月26日" bindblur="onAnniversaryText" />
           <picker mode="date" value="{{form.anniversaryDate}}" bindchange="onAnniversaryDate"><view class="cal"></view></picker>
         </view>
         <picker wx:else mode="multiSelector" range="{{form.birthRange}}" value="{{form.birthIndex}}" bindcolumnchange="onBirthdayColumn" bindchange="onBirthdayLunar">
@@ -51,9 +54,9 @@
         <view class="btn" bindtap="saveBirthday">保存生日</view>
       </block>
       <block wx:if="{{sheet === 'anniversary'}}">
-        <input data-key="title" value="{{form.title}}" placeholder="纪念日名称" bindinput="onForm" />
+        <input class="field" data-key="title" value="{{form.title}}" placeholder="纪念日名称" bindinput="onForm" />
         <view class="date-line">
-          <input value="{{form.dateText}}" placeholder="2018年11月26日" bindblur="onAnniversaryText" />
+          <input class="field" value="{{form.dateText}}" placeholder="2018年11月26日" bindblur="onAnniversaryText" />
           <picker mode="date" value="{{form.anniversaryDate}}" bindchange="onAnniversaryDate"><view class="cal"></view></picker>
         </view>
         <view class="row">
@@ -63,14 +66,14 @@
         <view class="btn" bindtap="saveAnniversary">保存纪念日</view>
       </block>
       <block wx:if="{{sheet === 'schedule'}}">
-        <input data-key="title" value="{{form.title}}" placeholder="日程" bindinput="onForm" />
+        <input class="field" data-key="title" value="{{form.title}}" placeholder="日程" bindinput="onForm" />
         <view class="date-line">
-          <input data-key="date" value="{{form.date}}" placeholder="2026-11-20" bindblur="onForm" />
+          <input class="field" data-key="date" value="{{form.date}}" placeholder="2026-11-20" bindblur="onForm" />
           <picker mode="date" value="{{form.date}}" data-key="date" bindchange="onForm"><view class="cal"></view></picker>
         </view>
-        <input data-key="note" value="{{form.note}}" placeholder="一句备注" bindinput="onForm" />
+        <input class="field" data-key="note" value="{{form.note}}" placeholder="一句备注" bindinput="onForm" />
         <view class="btn" bindtap="saveSchedule">保存日程</view>
       </block>
     </view>
   </view>
-</view>
+</scroll-view>

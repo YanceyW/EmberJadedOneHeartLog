@@ -1,11 +1,13 @@
 // 炎都拾光唯一的云函数。小程序不直接读写数据库。
 const cloud = require("wx-server-sdk");
+const crypto = require("crypto");
 const https = require("https");
+const zlib = require("zlib");
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
-const COLLECTIONS = ["users", "periods", "anniversaries", "birthdays", "schedules", "readings", "asks", "almanacs", "memories"];
+const COLLECTIONS = ["users", "periods", "anniversaries", "birthdays", "schedules", "readings", "asks", "almanacs", "memories", "notes"];
 const MALE_ROLES = ["男友", "未婚夫", "丈夫"];
 const FEMALE_ROLES = ["女友", "未婚妻", "妻子"];
 const PARTNER_ROLES = MALE_ROLES.concat(FEMALE_ROLES);
@@ -49,6 +51,10 @@ exports.main = async (event) => {
         return await deleteBirthday(OPENID, event.id);
       case "weather":
         return await weather(event);
+      case "partnerNote":
+        return await partnerNote(OPENID);
+      case "sendNote":
+        return await sendNote(OPENID, event.text);
       case "dailyReading":
         return await dailyReading(OPENID, event);
       case "almanac":
@@ -598,20 +604,36 @@ async function assertOwner(collection, id, openid) {
   }
 }
 
-function httpGet(url) {
+function decodeBody(buffer, encoding) {
+  const kind = String(encoding || "");
+  if (kind.includes("gzip") || (buffer.length > 2 && buffer[0] === 0x1f && buffer[1] === 0x8b)) {
+    return zlib.gunzipSync(buffer);
+  }
+  if (kind.includes("deflate")) {
+    return zlib.inflateSync(buffer);
+  }
+  return buffer;
+}
+
+function httpGet(url, headers) {
   return new Promise((resolve, reject) => {
-    const request = https.get(url, (res) => {
-      let raw = "";
-      res.on("data", (chunk) => {
-        raw += chunk;
-      });
+    const request = https.get(url, {
+      headers: Object.assign({ "Accept-Encoding": "identity" }, headers || {}),
+    }, (res) => {
+      const chunks = [];
+      res.on("data", (chunk) => chunks.push(chunk));
       res.on("end", () => {
+        if (res.statusCode === 401) {
+          reject(new Error("天气认证失败，请核对私钥和编号"));
+          return;
+        }
         if (res.statusCode !== 200) {
           reject(new Error("天气服务暂时不可用"));
           return;
         }
         try {
-          resolve(JSON.parse(raw));
+          const text = decodeBody(Buffer.concat(chunks), res.headers["content-encoding"]).toString("utf8");
+          resolve(JSON.parse(text));
         } catch (error) {
           reject(new Error("天气数据无法解析"));
         }
@@ -625,40 +647,56 @@ function httpGet(url) {
   });
 }
 
-function weatherText(code) {
-  if (code === 0) return "晴";
-  if (code <= 3) return "多云";
-  if (code <= 48) return "有雾";
-  if (code <= 67) return "下雨";
-  if (code <= 77) return "下雪";
-  if (code <= 82) return "阵雨";
-  if (code >= 95) return "雷雨";
-  return "天气变化";
-}
+let weatherToken = { value: "", exp: 0 };
 
-function weatherKind(code) {
-  if (code >= 95) return "storm";
-  if (code === 0) return "sun";
-  if (code <= 3) return "cloud";
-  if (code <= 48) return "fog";
-  if (code <= 77 || code === 85 || code === 86) return "snow";
-  if (code <= 82) return "rain";
-  return "cloud";
-}
-
-async function cityFromCoords(lat, lng) {
+function qweatherConfig() {
+  let secret = {};
   try {
-    const data = await httpGet(
-      "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" +
-        encodeURIComponent(lat) +
-        "&longitude=" +
-        encodeURIComponent(lng) +
-        "&localityLanguage=zh"
-    );
-    return data.city || data.locality || data.principalSubdivision || "当前位置";
+    secret = require("./secret");
   } catch (error) {
-    return "当前位置";
+    secret = {};
   }
+  const host = String(process.env.QWEATHER_API_HOST || secret.QWEATHER_API_HOST || "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
+  return {
+    host,
+    kid: process.env.QWEATHER_KID || secret.QWEATHER_KID || "",
+    sub: process.env.QWEATHER_SUB || secret.QWEATHER_SUB || "",
+    iss: process.env.QWEATHER_ISS || secret.QWEATHER_ISS || "",
+    privateKey: process.env.QWEATHER_PRIVATE_KEY || secret.QWEATHER_PRIVATE_KEY || "",
+  };
+}
+
+function base64url(value) {
+  return Buffer.from(value).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function signWeatherToken(config) {
+  const now = Math.floor(Date.now() / 1000);
+  if (weatherToken.value && weatherToken.exp - 60 > now) {
+    return weatherToken.value;
+  }
+  const header = base64url(JSON.stringify({ alg: "EdDSA", kid: config.kid }));
+  const iat = now - 30;
+  const exp = iat + 3600;
+  const payload = base64url(JSON.stringify({ iss: config.iss, sub: config.sub, iat, exp }));
+  const unsigned = `${header}.${payload}`;
+  const key = crypto.createPrivateKey(config.privateKey);
+  const signature = crypto.sign(null, Buffer.from(unsigned), key);
+  weatherToken = { value: `${unsigned}.${base64url(signature)}`, exp };
+  return weatherToken.value;
+}
+
+function weatherKindFromIcon(icon) {
+  const code = Number(icon);
+  if (code === 302 || code === 303 || code === 304) return "storm";
+  if (code === 100 || code === 150) return "sun";
+  if (code >= 101 && code <= 104) return "cloud";
+  if (code >= 400 && code <= 499) return "snow";
+  if (code >= 500 && code <= 515) return "fog";
+  if (code >= 300 && code <= 399) return "rain";
+  return "cloud";
 }
 
 function clothing(temp) {
@@ -669,24 +707,185 @@ function clothing(temp) {
   return "注意保暖";
 }
 
-async function geocodePlace(place) {
-  const parts = String(place || "").split(/\s+/).filter(Boolean);
-  const names = [parts[1], parts[2], parts[0], place.replace(/\s+/g, "")].filter(Boolean);
-  for (let index = 0; index < names.length; index += 1) {
-    const data = await httpGet(
-      "https://geocoding-api.open-meteo.com/v1/search?name=" +
-        encodeURIComponent(names[index]) +
-        "&count=1&language=zh&countryCode=CN"
-    );
-    if (data.results && data.results[0]) {
-      return data.results[0];
-    }
+async function qweatherGet(config, path, query) {
+  const pairs = Object.keys(query).map((name) => `${name}=${encodeURIComponent(query[name])}`);
+  const token = signWeatherToken(config);
+  const data = await httpGet(`https://${config.host}${path}?${pairs.join("&")}`, {
+    Authorization: `Bearer ${token}`,
+  });
+  if (!data || String(data.code) !== "200") {
+    throw new Error("天气服务暂时不可用");
   }
-  throw new Error("没有找到这个城市");
+  return data;
 }
 
-/** 小程序不直接访问外网。坐标只用来查天气，不写入数据库。 */
+function scaleOf(value) {
+  const nums = String(value || "").match(/\d+/g);
+  if (!nums || !nums.length) return 0;
+  return Math.max.apply(null, nums.map((item) => Number(item)));
+}
+
+function shanghaiHour(value) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  const hour = parts.find((item) => item.type === "hour");
+  return Number(hour && hour.value);
+}
+
+function hourWords(hour) {
+  const name = ["十二", "一", "两", "三", "四", "五", "六", "七", "八", "九", "十", "十一"][hour % 12];
+  if (hour === 0) return { short: "凌晨", around: "凌晨前后" };
+  if (hour === 12) return { short: "中午", around: "中午前后" };
+  if (hour < 5) return { short: `凌晨${name}点`, around: `凌晨${name}点前后` };
+  if (hour < 11) return { short: `上午${name}点`, around: `上午${name}点前后` };
+  if (hour < 18) return { short: `下午${name}点`, around: `下午${name}点前后` };
+  return { short: `晚上${name}点`, around: `晚上${name}点前后` };
+}
+
+function isRainy(item) {
+  return /雨|雪/.test(String(item.text || "")) || Number(item.precip) >= 0.1;
+}
+
+function buildOutlook(hourly, now) {
+  const currentHour = shanghaiHour(Date.now());
+  const nowScale = scaleOf(now.windScale);
+  const nowTemp = Math.round(Number(now.temp));
+  const nowRain = /雨|雪/.test(String(now.text || ""));
+  const rows = (hourly || []).map((item) => ({
+    hour: shanghaiHour(item.fxTime),
+    time: new Date(item.fxTime).getTime(),
+    temp: Math.round(Number(item.temp)),
+    text: item.text || "",
+    kind: weatherKindFromIcon(item.icon),
+    scale: scaleOf(item.windScale),
+    rainy: isRainy(item),
+  })).filter((item) => Number.isFinite(item.temp) && Number.isFinite(item.hour) && item.time >= Date.now() - 60 * 60 * 1000);
+
+  const today = [];
+  rows.forEach((item) => {
+    if (today.length >= 8) return;
+    if (item.time > Date.now() + 16 * 60 * 60 * 1000) return;
+    today.push(item);
+  });
+
+  let rain = null;
+  let wind = null;
+  let cool = null;
+  let hot = null;
+  today.forEach((item) => {
+    if (item.time <= Date.now()) return;
+    if (!rain && item.rainy && !nowRain) rain = item;
+    if (!wind && item.scale >= nowScale + 2 && item.scale >= 4) wind = item;
+    if (!cool && item.temp <= nowTemp - 4) cool = item;
+    if (!hot && item.temp >= nowTemp + 4) hot = item;
+  });
+
+  const hints = [];
+  if (rain && wind && Math.abs(rain.time - wind.time) <= 2 * 60 * 60 * 1000) {
+    hints.push(`${hourWords(rain.hour).around}又下雨又起风，伞和外套都带上`);
+  } else {
+    if (rain) hints.push(`${hourWords(rain.hour).around}会落雨，出门把伞带上`);
+    if (wind && hints.length < 2) hints.push(`${hourWords(wind.hour).around}风会大一档，围巾戴上`);
+  }
+  if (hints.length < 2 && cool) hints.push(`${hourWords(cool.hour).around}会凉下来，外套多备一件`);
+  if (hints.length < 2 && hot && !cool) hints.push(`${hourWords(hot.hour).around}会热一些，记得喝水`);
+
+  const hours = today.map((item) => ({
+    label: item.hour === currentHour ? "现在" : hourWords(item.hour).short,
+    temp: item.temp,
+    kind: item.kind,
+    mark: item.rainy || (item.scale >= nowScale + 2 && item.scale >= 4),
+  }));
+  return { hints: hints.slice(0, 2), hours };
+}
+
+function point(lng, lat) {
+  return `${Number(lng).toFixed(2)},${Number(lat).toFixed(2)}`;
+}
+
+async function fetchSky(config, lng, lat) {
+  const location = point(lng, lat);
+  const [nowRes, dailyRes, hourRes] = await Promise.all([
+    qweatherGet(config, "/v7/weather/now", { location }),
+    qweatherGet(config, "/v7/weather/3d", { location }),
+    qweatherGet(config, "/v7/weather/24h", { location }).catch(() => ({ hourly: [] })),
+  ]);
+  const now = nowRes.now || {};
+  const daily = (dailyRes.daily && dailyRes.daily[0]) || {};
+  const temp = Math.round(Number(now.temp));
+  if (!Number.isFinite(temp)) {
+    throw new Error("天气数据不完整");
+  }
+  const tempMax = Math.round(Number(daily.tempMax));
+  const tempMin = Math.round(Number(daily.tempMin));
+  const feelsLike = Math.round(Number(now.feelsLike));
+  const humidity = Math.round(Number(now.humidity));
+  const wind = Number(now.windSpeed);
+  const text = String(now.text || "天气变化");
+  const outlook = buildOutlook(hourRes.hourly, now);
+  const windText = [now.windDir, now.windScale ? `${now.windScale}级` : ""].filter(Boolean).join(" ");
+  return {
+    temp,
+    tempMax: Number.isFinite(tempMax) ? tempMax : temp,
+    tempMin: Number.isFinite(tempMin) ? tempMin : temp,
+    feelsLike: Number.isFinite(feelsLike) ? feelsLike : "",
+    humidity: Number.isFinite(humidity) ? humidity : "",
+    windText,
+    text,
+    kind: weatherKindFromIcon(now.icon),
+    windy: Number.isFinite(wind) && wind >= 29,
+    heavy: /大雨|暴雨/.test(text),
+    hints: outlook.hints,
+    hours: outlook.hours,
+    sunrise: daily.sunrise || "",
+    sunset: daily.sunset || "",
+    moonPhase: daily.moonPhase || "",
+    moonrise: daily.moonrise || "",
+    moonset: daily.moonset || "",
+  };
+}
+
+async function cityFromCoords(config, lng, lat) {
+  try {
+    const data = await qweatherGet(config, "/geo/v2/city/lookup", { location: point(lng, lat), number: "1" });
+    const item = data.location && data.location[0];
+    return (item && (item.name || item.adm2)) || "当前位置";
+  } catch (error) {
+    return "当前位置";
+  }
+}
+
+async function locatePlace(config, place) {
+  const parts = String(place || "").split(/\s+/).filter(Boolean);
+  const raw = parts[parts.length - 1] || place;
+  const name = raw.replace(/(特别行政区|自治区|省|市|区|县)$/, "") || raw;
+  const adm = parts.length >= 2 ? parts[parts.length - 2].replace(/(市|省|自治区|特别行政区)$/, "") : "";
+  const query = { location: name, number: "1" };
+  if (adm) query.adm = adm;
+  const data = await qweatherGet(config, "/geo/v2/city/lookup", query);
+  const item = data.location && data.location[0];
+  if (!item) {
+    throw new Error("没有找到这个城市");
+  }
+  return {
+    lat: Number(item.lat),
+    lng: Number(item.lon),
+    place: item.name || name,
+  };
+}
+
+/** 小程序不直接访问外网。坐标只用来查天气，不写入数据库。先拿气温，城市名失败不影响气温。 */
 async function weather(event) {
+  const config = qweatherConfig();
+  if (!config.host || !config.kid || !config.sub || !config.iss) {
+    throw new Error("还没有配置天气编号");
+  }
+  if (!String(config.privateKey || "").includes("BEGIN PRIVATE KEY")) {
+    throw new Error("还没有填写天气私钥");
+  }
   let lat = Number(event.latitude);
   let lng = Number(event.longitude);
   let place = String(event.place || "").trim();
@@ -694,43 +893,109 @@ async function weather(event) {
     if (!place) {
       throw new Error("没有拿到位置");
     }
-    const found = await geocodePlace(place);
-    lat = found.latitude;
-    lng = found.longitude;
-    const parts = place.split(/\s+/).filter(Boolean);
-    place = parts[1] || parts[0] || place;
-  } else {
-    place = await cityFromCoords(lat, lng);
+    const found = await locatePlace(config, place);
+    lat = found.lat;
+    lng = found.lng;
+    place = found.place;
+    const sky = await fetchSky(config, lng, lat);
+    return { ok: true, ...sky, place, clothing: clothing(sky.temp) };
   }
-  const url =
-    "https://api.open-meteo.com/v1/forecast?latitude=" +
-    encodeURIComponent(lat) +
-    "&longitude=" +
-    encodeURIComponent(lng) +
-    "&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=Asia%2FShanghai";
-  const data = await httpGet(url);
-  const current = data.current || {};
-  const daily = data.daily || {};
-  const temp = Math.round(Number(current.temperature_2m));
-  const tempMax = Math.round(Number(daily.temperature_2m_max && daily.temperature_2m_max[0]));
-  const tempMin = Math.round(Number(daily.temperature_2m_min && daily.temperature_2m_min[0]));
-  const code = Number(current.weather_code);
-  const wind = Number(current.wind_speed_10m);
-  if (!Number.isFinite(temp)) {
-    throw new Error("天气数据不完整");
+  const [sky, city] = await Promise.all([
+    fetchSky(config, lng, lat),
+    cityFromCoords(config, lng, lat),
+  ]);
+  return { ok: true, ...sky, place: city || "当前位置", clothing: clothing(sky.temp) };
+}
+
+async function mutualPair(openid) {
+  const user = await ensureUser(openid);
+  const partner = user.chosenOpenid ? await findUser(user.chosenOpenid) : null;
+  if (!isMutual(user, partner)) {
+    return null;
   }
+  return { user, partner };
+}
+
+async function partnerNote(openid) {
+  const pair = await mutualPair(openid);
+  if (!pair) {
+    return { ok: true, visible: false, text: "", fromName: "" };
+  }
+  const found = await db.collection("notes").where({
+    toOpenid: openid,
+    fromOpenid: pair.partner.openid,
+  }).limit(1).get();
+  const note = found.data[0];
   return {
     ok: true,
-    temp,
-    tempMax: Number.isFinite(tempMax) ? tempMax : temp,
-    tempMin: Number.isFinite(tempMin) ? tempMin : temp,
-    text: weatherText(code),
-    kind: weatherKind(code),
-    windy: Number.isFinite(wind) && wind >= 8,
-    heavy: code >= 63 && code <= 67,
-    place,
-    clothing: clothing(temp),
+    visible: true,
+    text: note && note.text ? note.text : "",
+    fromName: pair.partner.nickName || "TA",
   };
+}
+
+async function pushNote(toOpenid, text) {
+  const templateId = process.env.SUBSCRIBE_TEMPLATE_ID || "";
+  if (!templateId) {
+    return;
+  }
+  const clock = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date()).replace(" ", " ").slice(0, 16);
+  try {
+    await cloud.openapi.subscribeMessage.send({
+      touser: toOpenid,
+      templateId,
+      page: "pages/main/index",
+      miniprogramState: "trial",
+      lang: "zh_CN",
+      data: {
+        thing1: { value: "想对你说" },
+        time2: { value: clock },
+        thing3: { value: String(text || "").slice(0, 20) },
+      },
+    });
+  } catch (error) {
+    console.error("订阅消息发送失败", error);
+  }
+}
+
+async function sendNote(openid, text) {
+  const pair = await mutualPair(openid);
+  if (!pair) {
+    throw new Error("双方确认对象后才能留话");
+  }
+  const clean = String(text || "").trim().slice(0, 80);
+  if (!clean) {
+    throw new Error("先写一句");
+  }
+  const existing = await db.collection("notes").where({
+    fromOpenid: openid,
+    toOpenid: pair.partner.openid,
+  }).limit(1).get();
+  if (existing.data[0]) {
+    await db.collection("notes").doc(existing.data[0]._id).update({
+      data: { text: clean, updatedAt: Date.now() },
+    });
+  } else {
+    await db.collection("notes").add({
+      data: {
+        fromOpenid: openid,
+        toOpenid: pair.partner.openid,
+        text: clean,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
+    });
+  }
+  await pushNote(pair.partner.openid, clean);
+  return { ok: true };
 }
 
 function todayShanghai() {
@@ -854,18 +1119,18 @@ async function dailyReading(openid, event) {
   const date = todayShanghai();
   const weatherSource = String((event && event.weatherSource) || "").trim().slice(0, 40);
   const weatherLine = String((event && event.weather) || "").trim().slice(0, 80);
-  const cached = await db.collection("readings").where({
+  const found = await db.collection("readings").where({
     openid,
     date,
     promptVersion: PROMPT_VERSION,
-    weatherSource,
-  }).limit(1).get();
-  if (cached.data[0]) {
+  }).limit(100).get();
+  const latest = found.data.slice().sort((left, right) => (right.createdAt || 0) - (left.createdAt || 0))[0];
+  if (latest && Date.now() - (latest.createdAt || 0) < 60 * 60 * 1000) {
     return {
       ok: true,
-      score: cached.data[0].score,
-      lines: cached.data[0].lines,
-      brief: cached.data[0].brief || "",
+      score: latest.score,
+      lines: latest.lines,
+      brief: latest.brief || "",
       date,
     };
   }

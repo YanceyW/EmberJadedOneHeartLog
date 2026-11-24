@@ -13,7 +13,9 @@
 }
 
 .card {
-  background: rgba(255, 250, 248, 0.82);
+  position: relative;
+  z-index: 1;
+  background: #fffaf8;
   border-radius: 32rpx;
   padding: 28rpx;
   margin-bottom: 20rpx;
@@ -56,6 +58,78 @@
 .sky-icon.rain { background: #8fb4d9; }
 .sky-icon.snow { background: #f4f7fb; border: 2rpx solid #d9e3ee; }
 .sky-icon.fog { background: #e6e1de; }
+.sky-icon.storm { background: #6f8fb5; }
+.sky-icon.big { width: 72rpx; height: 72rpx; }
+.sky-icon.tiny { width: 28rpx; height: 28rpx; margin: 8rpx auto; }
+
+.weather-card { overflow: hidden; background: #fffaf8; }
+.sky-stage { height: 360rpx; margin: -28rpx -28rpx 16rpx; border-radius: 32rpx 32rpx 0 0; overflow: hidden; }
+.sky-stage-canvas { width: 100%; height: 360rpx; display: block; }
+.weather-copy { position: relative; z-index: 1; background: #fffaf8; }
+
+.weather-card .place { margin-bottom: 0; }
+.weather-name { font-size: 30rpx; color: #5c463f; }
+.weather-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+.temp-big {
+  font-size: 96rpx;
+  line-height: 1;
+  font-weight: 600;
+  color: #5c463f;
+}
+.hour-scroll {
+  width: 100%;
+  margin-top: 20rpx;
+  white-space: nowrap;
+}
+.hour {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 108rpx;
+  margin-right: 8rpx;
+  padding: 12rpx 0;
+  border-radius: 20rpx;
+  color: #5c463f;
+  font-size: 24rpx;
+}
+.hour.mark { background: rgba(233, 137, 154, 0.16); }
+.hour-label { color: #a08b84; font-size: 22rpx; }
+.hint-line {
+  margin-top: 16rpx;
+  line-height: 1.6;
+  color: #5c463f;
+}
+
+.sky-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.sky-choice,
+.sky-back {
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  color: #8a3d48;
+  font-size: 24rpx;
+}
+
+.sky-choice.on {
+  background: #e9899a;
+  color: #fff;
+}
+
+.sky-back {
+  background: transparent;
+  border: 2rpx solid #e9899a;
+}
 
 .row-between {
   display: flex;
@@ -78,11 +152,16 @@
 }
 
 .hello {
-  background: #fff7f4;
+  position: relative;
+  z-index: 1;
+  background: #fffaf8;
+  border-radius: 32rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 28rpx rgba(227, 154, 168, 0.12);
   display: flex;
   align-items: center;
   gap: 20rpx;
-  margin-bottom: 24rpx;
 }
 
 .mini-heart {
@@ -196,4 +275,56 @@
 
 .locate::after {
   border: none;
+}
+
+.note-body {
+  margin-top: 12rpx;
+  font-size: 34rpx;
+  line-height: 1.6;
+  color: #5c463f;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 80;
+  background: rgba(92, 70, 63, 0.28);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: #fffaf8;
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 28rpx 28rpx 0;
+  box-sizing: border-box;
+}
+
+.field-placeholder {
+  color: #a08b84;
+}
+
+.field {
+  width: 100%;
+  height: 160rpx;
+  margin-top: 16rpx;
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+  color: #5c463f;
+  box-sizing: border-box;
+}
+
+.btn {
+  margin-top: 20rpx;
+  background: #e9899a;
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  line-height: 80rpx;
+  text-align: center;
 }

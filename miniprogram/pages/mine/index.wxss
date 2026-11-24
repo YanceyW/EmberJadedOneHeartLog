@@ -15,7 +15,9 @@
 .card {
   width: 100%;
   box-sizing: border-box;
-  background: rgba(255, 250, 248, 0.82);
+  position: relative;
+  z-index: 1;
+  background: #fffaf8;
   border-radius: 28rpx;
   padding: 28rpx;
   margin-bottom: 16rpx;

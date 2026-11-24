@@ -1,4 +1,5 @@
-/** 日期工具。全部按手机本地日期计算，避免时区把日子提前或推后一天。 */
+/** 日期工具。全部按手机本地日期计算，避免时区把日子提前或推后一天。节气用农历库。 */
+const { solarTermName } = require("./lunar");
 
 function pad(value) {
   return String(value).padStart(2, "0");
@@ -71,22 +72,6 @@ const SOLAR_FESTIVALS = {
   "10-1": "国庆节",
   "12-25": "圣诞节",
 };
-
-const TERM_NAMES = ["小寒", "大寒", "立春", "雨水", "惊蛰", "春分", "清明", "谷雨", "立夏", "小满", "芒种", "夏至", "小暑", "大暑", "立秋", "处暑", "白露", "秋分", "寒露", "霜降", "立冬", "小雪", "大雪", "冬至"];
-const TERM_INFO = [0, 21208, 42467, 63836, 85337, 107014, 128867, 150921, 173149, 195551, 218072, 240693, 263343, 285989, 308563, 331033, 353350, 375494, 397447, 419210, 440795, 462224, 483532, 504758];
-
-function solarTermName(year, month, day) {
-  for (let index = 0; index < 24; index += 1) {
-    if (Math.floor(index / 2) + 1 !== month) {
-      continue;
-    }
-    const moment = new Date(31556925974.7 * (year - 1900) + TERM_INFO[index] * 60000 + Date.UTC(1900, 0, 6, 2, 5));
-    if (moment.getUTCDate() === day) {
-      return TERM_NAMES[index];
-    }
-  }
-  return "";
-}
 
 function displayDate(text) {
   const [year, month, day] = text.split("-");

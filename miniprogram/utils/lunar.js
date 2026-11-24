@@ -1,41 +1,22 @@
 /**
- * 1900 到 2100 年的农历月大小和闰月。
- * 由已核对过的农历库压缩成位图，月历和生日滚轮都用这份小表。
+ * 生日滚轮和月历农历。
+ * 换算走 lunar-lib.js（lunar-javascript 1.7.8，MIT）。
+ * 已保存的生日仍是「年-月-日」或「年-L月-日」，这里不改格式。
  */
-const INFO = [
-  19416, 19168, 42352, 21717, 53856, 55632, 91476, 22176, 39632, 21970,
-  19168, 42422, 42192, 53840, 119381, 46400, 54944, 44450, 38320, 84343,
-  18800, 42160, 46261, 27216, 27968, 109396, 11104, 38256, 21234, 18800,
-  25958, 54432, 59984, 92821, 23248, 11104, 100067, 37600, 116951, 51536,
-  54432, 120998, 46416, 22176, 107956, 9680, 37584, 53938, 43344, 46423,
-  27808, 46416, 86869, 19872, 42416, 83315, 21168, 43432, 59728, 27296,
-  44710, 43856, 19296, 43748, 42352, 21088, 62051, 55632, 23383, 22176,
-  38608, 19925, 19152, 42192, 54484, 53840, 54616, 46400, 46752, 103846,
-  38320, 18864, 43380, 42160, 45690, 27216, 27968, 44870, 43872, 38256,
-  19189, 18800, 25776, 29859, 59984, 27480, 23232, 43872, 38613, 37600,
-  51552, 55636, 54432, 55888, 30034, 22176, 43959, 9680, 37584, 51893,
-  43344, 46240, 47780, 44368, 21977, 19360, 42416, 86390, 21168, 43312,
-  31060, 27296, 44368, 23378, 19296, 42726, 42208, 53856, 60005, 54576,
-  23200, 30371, 38608, 19195, 19152, 42192, 118966, 53840, 54560, 56645,
-  46496, 22224, 21938, 18864, 42359, 42160, 43600, 111189, 27936, 44448,
-  84835, 37744, 18936, 18800, 25776, 92326, 59984, 27424, 108228, 43744,
-  37600, 53987, 51552, 54615, 54432, 55888, 23893, 22176, 42704, 21972,
-  21200, 43448, 43344, 46240, 46758, 44368, 21920, 43940, 42416, 21168,
-  45683, 26928, 29495, 27296, 44368, 84821, 19296, 42352, 21732, 53600,
-  59752, 54560, 55968, 92838, 22224, 19168, 43476, 41680, 53584, 62034,
-  54560,
-];
+const { Solar, LunarYear, LunarMonth } = require("./lunar-lib.js");
 
 const FIRST_YEAR = 1920;
+const LAST_YEAR = 2100;
 const MONTH_NAMES = ["正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"];
 const DAY_NAMES = ["初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十", "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十", "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"];
+const CALENDARS = ["阳历", "农历"];
 
 function pad(number) {
   return String(number).padStart(2, "0");
 }
 
 function yearsUntilNow() {
-  const end = Math.min(new Date().getFullYear(), 2100);
+  const end = Math.min(new Date().getFullYear(), LAST_YEAR);
   const years = [];
   for (let year = FIRST_YEAR; year <= end; year += 1) {
     years.push(year);
@@ -43,85 +24,44 @@ function yearsUntilNow() {
   return years;
 }
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value || 0, min), max);
+}
+
+/** 农历年的闰月。没有闰月时返回 0。 */
 function leapMonth(year) {
-  const row = INFO[year - 1900];
-  return row ? row & 0xf : 0;
+  if (year < 1900 || year > LAST_YEAR) {
+    return 0;
+  }
+  try {
+    return LunarYear.fromYear(year).getLeapMonth() || 0;
+  } catch (error) {
+    return 0;
+  }
 }
 
-function leapDayCount(year) {
-  if (!leapMonth(year)) return 0;
-  return INFO[year - 1900] & 0x10000 ? 30 : 29;
-}
-
-function monthDayCount(year, month) {
-  return INFO[year - 1900] & (0x10000 >> month) ? 30 : 29;
-}
-
-function yearDayCount(year) {
-  let sum = 348;
-  for (let bit = 0x8000; bit > 0x8; bit >>= 1) {
-    if (INFO[year - 1900] & bit) sum += 1;
+function monthDays(year, month, leap) {
+  try {
+    const value = LunarMonth.fromYm(year, leap ? -month : month);
+    return value ? value.getDayCount() : 30;
+  } catch (error) {
+    return 30;
   }
-  return sum + leapDayCount(year);
-}
-
-/** 公历换成农历。1900-01-31 是农历正月初一。 */
-function solarToLunar(year, month, day) {
-  if (year < 1900 || year > 2100) return null;
-  let offset = (Date.UTC(year, month - 1, day) - Date.UTC(1900, 0, 31)) / 86400000;
-  let index = 1900;
-  let days = 0;
-  for (index = 1900; index < 2101 && offset > 0; index += 1) {
-    days = yearDayCount(index);
-    offset -= days;
-  }
-  if (offset < 0) {
-    offset += days;
-    index -= 1;
-  }
-  const lunarYear = index;
-  const leap = leapMonth(lunarYear);
-  let isLeap = false;
-  for (index = 1; index < 13 && offset > 0; index += 1) {
-    if (leap > 0 && index === leap + 1 && !isLeap) {
-      index -= 1;
-      isLeap = true;
-      days = leapDayCount(lunarYear);
-    } else {
-      days = monthDayCount(lunarYear, index);
-    }
-    if (isLeap && index === leap + 1) isLeap = false;
-    offset -= days;
-  }
-  if (offset === 0 && leap > 0 && index === leap + 1) {
-    if (isLeap) isLeap = false;
-    else {
-      isLeap = true;
-      index -= 1;
-    }
-  }
-  if (offset < 0) {
-    offset += days;
-    index -= 1;
-  }
-  return { year: lunarYear, month: index, day: offset + 1, isLeap };
 }
 
 function monthsOf(year) {
-  if (year < 1900 || year > 2100) return [];
+  if (year < 1900 || year > LAST_YEAR) {
+    return [];
+  }
   const leap = leapMonth(year);
   const months = [];
   for (let month = 1; month <= 12; month += 1) {
-    months.push({ key: pad(month), name: MONTH_NAMES[month - 1] + "月", days: monthDayCount(year, month) });
+    months.push({ key: pad(month), name: MONTH_NAMES[month - 1] + "月", days: monthDays(year, month, false) });
     if (leap === month) {
-      months.push({ key: "L" + pad(month), name: "闰" + MONTH_NAMES[month - 1] + "月", days: leapDayCount(year) });
+      months.push({ key: "L" + pad(month), name: "闰" + MONTH_NAMES[month - 1] + "月", days: monthDays(year, month, true) });
     }
   }
   return months;
-}
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value || 0, min), max);
 }
 
 function solarMonthCount(year) {
@@ -137,8 +77,6 @@ function solarDayCount(year, month) {
   }
   return count;
 }
-
-const CALENDARS = ["阳历", "农历"];
 
 function buildBirth(index) {
   const calendarIndex = index[0] === 1 ? 1 : 0;
@@ -227,6 +165,25 @@ function birthText(calendar, date) {
   return "阳历" + Number(matched[1]) + "年" + Number(matched[2]) + "月" + Number(matched[3]) + "日";
 }
 
+/** 公历换成农历。1900 到 2100 年。 */
+function solarToLunar(year, month, day) {
+  if (year < 1900 || year > LAST_YEAR) {
+    return null;
+  }
+  try {
+    const lunar = Solar.fromYmd(year, month, day).getLunar();
+    const monthValue = lunar.getMonth();
+    return {
+      year: lunar.getYear(),
+      month: Math.abs(monthValue),
+      day: lunar.getDay(),
+      isLeap: monthValue < 0,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
 function markDay(year, month, day) {
   const lunar = solarToLunar(year, month, day);
   if (!lunar) return { lunar: "", lunarFull: "" };
@@ -238,6 +195,59 @@ function markDay(year, month, day) {
   };
 }
 
+const GAN_COLOR = {
+  甲: "#3a9a4a", 乙: "#3a9a4a",
+  丙: "#e05a4a", 丁: "#e05a4a",
+  戊: "#c4a24a", 己: "#c4a24a",
+  庚: "#8a8478", 辛: "#8a8478",
+  壬: "#3a7ab5", 癸: "#3a7ab5",
+  寅: "#3a9a4a", 卯: "#3a9a4a",
+  巳: "#e05a4a", 午: "#e05a4a",
+  辰: "#c4a24a", 戌: "#c4a24a", 丑: "#c4a24a", 未: "#c4a24a",
+  申: "#8a8478", 酉: "#8a8478",
+  亥: "#3a7ab5", 子: "#3a7ab5",
+};
+
+function splitPillar(name, text) {
+  const value = String(text || "");
+  const gan = value.slice(0, 1);
+  const zhi = value.slice(1, 2);
+  return {
+    name,
+    gan,
+    zhi,
+    ganColor: GAN_COLOR[gan] || "#5c463f",
+    zhiColor: GAN_COLOR[zhi] || "#5c463f",
+  };
+}
+
+/** 年、月、日、时的天干地支。时辰用当前钟点。 */
+function ganZhiPillars(year, month, day, hour) {
+  try {
+    const lunar = Solar.fromYmdHms(year, month, day, hour, 0, 0).getLunar();
+    return [
+      splitPillar("年", lunar.getYearInGanZhi()),
+      splitPillar("月", lunar.getMonthInGanZhi()),
+      splitPillar("日", lunar.getDayInGanZhi()),
+      splitPillar("时", lunar.getTimeInGanZhi()),
+    ];
+  } catch (error) {
+    return [];
+  }
+}
+
+/** 当天节气名。不是节气日时返回空字符串。 */
+function solarTermName(year, month, day) {
+  if (year < 1900 || year > LAST_YEAR) {
+    return "";
+  }
+  try {
+    return Solar.fromYmd(year, month, day).getLunar().getJieQi() || "";
+  } catch (error) {
+    return "";
+  }
+}
+
 module.exports = {
   buildBirth,
   birthFrom,
@@ -246,4 +256,6 @@ module.exports = {
   markDay,
   solarToLunar,
   leapMonth,
+  solarTermName,
+  ganZhiPillars,
 };

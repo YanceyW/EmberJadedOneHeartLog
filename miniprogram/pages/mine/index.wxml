@@ -1,4 +1,4 @@
-<view class="page" style="padding-bottom: {{tabClearance}}px;">
+<scroll-view class="page" scroll-y enhanced show-scrollbar="{{false}}">
   <view class="card person">
     <view class="mini-heart"></view>
     <view class="who">
@@ -19,4 +19,5 @@
     <view class="name">{{item}}</view>
     <view class="sub">施工中</view>
   </view>
-</view>
+  <view style="height: {{tabClearance}}px;"></view>
+</scroll-view>

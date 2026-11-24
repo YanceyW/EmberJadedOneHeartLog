@@ -27,7 +27,7 @@
     <view class="day" wx:if="{{hasMore}}">继续向上查看更早的记录</view>
     <view wx:for="{{messages}}" wx:key="id" id="m-{{item.id}}">
       <view class="day" wx:if="{{item.showDay}}">{{item.dayText}}</view>
-      <view class="pair {{selecting && picked[item.id] ? 'on' : ''}}" data-id="{{item.id}}" bindtap="onPair">
+      <view class="pair {{selecting && picked[item.id] ? 'on' : ''}}" data-id="{{item.id}}" catchtap="onPair">
         <view class="check" wx:if="{{selecting}}">{{picked[item.id] ? '✓' : ''}}</view>
         <view class="stack">
           <view class="bubble user">{{item.question}}</view>

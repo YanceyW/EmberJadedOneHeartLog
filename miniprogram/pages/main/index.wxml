@@ -1,18 +1,11 @@
-<view class="sky {{weatherOn ? weatherKind : ''}} {{weatherOn && windy ? 'windy' : ''}} {{weatherOn && heavy ? 'heavy' : ''}}">
-  <view class="glow"></view>
-  <view class="cloud" wx:for="{{clouds}}" wx:key="id" style="top:{{item.top}};width:{{item.width}};height:{{item.height}};opacity:{{item.opacity}};animation-delay:{{item.delay}};animation-duration:{{item.duration}}"></view>
-  <view class="cap"></view>
-  <view class="drop" wx:for="{{drops}}" wx:for-item="drop" wx:key="id" style="left:{{drop.left}};width:{{drop.width}};height:{{drop.length}};opacity:{{drop.opacity}};animation-delay:{{drop.delay}};animation-duration:{{drop.duration}};--drift:{{drop.drift}};--sway:{{drop.sway}};--tilt:{{drop.tilt}};--size:{{drop.size}}"></view>
-  <view class="leaf" wx:for="{{leaves}}" wx:for-item="leaf" wx:key="id" style="top:{{leaf.top}};width:{{leaf.size}};height:{{leaf.size}};background:{{leaf.color}};animation-delay:{{leaf.delay}};animation-duration:{{leaf.duration}};--drop:{{leaf.drop}};--spin:{{leaf.spin}}"></view>
-  <view class="gust" wx:for="{{gusts}}" wx:for-item="gust" wx:key="id" style="top:{{gust.top}};width:{{gust.width}};height:{{gust.height}};animation-delay:{{gust.delay}};animation-duration:{{gust.duration}};--lift:{{gust.lift}};--tilt:{{gust.tilt}}"></view>
-</view>
-
+<view class="stage">
 <swiper class="deck" current="{{current}}" duration="280" bindchange="onChange">
-  <swiper-item class="slide"><view class="fill"><home-panel active="{{current === 0}}" bind:jumpto="onTab" bind:weather="onWeather" bind:ask="openAsk" /></view></swiper-item>
+  <swiper-item class="slide"><view class="fill"><home-panel active="{{current === 0}}" bind:jumpto="onTab" bind:ask="openAsk" /></view></swiper-item>
   <swiper-item class="slide"><view class="fill"><calendar-panel active="{{current === 1}}" bind:jumpto="onTab" /></view></swiper-item>
   <swiper-item class="slide"><view class="fill"><ask-panel active="{{current === 2}}" /></view></swiper-item>
   <swiper-item class="slide"><view class="fill"><records-panel active="{{current === 3}}" bind:jumpto="onTab" /></view></swiper-item>
-  <swiper-item class="slide"><view class="fill"><mine-panel /></view></swiper-item>
+  <swiper-item class="slide"><view class="fill"><mine-panel active="{{current === 4}}" /></view></swiper-item>
 </swiper>
 
 <tab-bar current="{{current}}" bind:change="onTab" bind:ask="openAsk" />
+</view>
