@@ -1,8 +1,8 @@
 /**
  * 天空时段和粒子。
- * 底色在页面样式里。太阳、云、风、雨、雪、雾、雷都画在同一块满屏画布上。
+ * 太阳、云、风、雨、雪、雾、雷都画在同一块铺满天气卡片的画布上，字浮在画布上面。
  * 会下落的受重力，并被空气拖向自己的落速。云和雾只跟风走。
- * 积雪是顶边上一整层厚度，不画成圆点或矩形。
+ * 积雪是边框上一整层厚度，不画成圆点或矩形。
  */
 
 function between(min, max) {
@@ -135,7 +135,7 @@ function needsHit(kind) {
 }
 
 const CLOUD_BANDS = [0.08, 0.22, 0.38, 0.54, 0.7, 0.86];
-const SNOW_MAX = 16;
+const SNOW_MAX = 20;
 const MOON_SHIFT = {
   new: 1.15,
   "wax-crescent": 0.72,
@@ -193,8 +193,8 @@ function makeDrop(width, height, fierce) {
 }
 
 function makeFlake(width, height) {
-  const gravity = between(150, 260);
-  const drag = between(3.1, 4.8);
+  const gravity = between(340, 560);
+  const drag = between(3.6, 5.2);
   return {
     x: between(0, width),
     y: between(-height, height),
@@ -202,7 +202,7 @@ function makeFlake(width, height) {
     py: 0,
     vx: between(-12, 12),
     vy: (gravity / drag) * between(0.55, 0.9),
-    r: between(1.5, 3.8),
+    r: between(1, 2.6),
     gravity,
     drag,
     windage: between(1.05, 1.45),
@@ -262,11 +262,11 @@ function makeMote(width, height) {
     py: 0,
     vx: between(-8, 8),
     vy: gravity * 0.6,
-    r: between(1.1, 2.4),
+    r: between(1.4, 3.4),
     gravity,
     drag: 1.1,
     windage: 0.7,
-    alpha: between(0.28, 0.7),
+    alpha: between(0.08, 0.22),
   };
 }
 
@@ -317,8 +317,8 @@ function createCast(spec) {
     gustLeft: 0,
     time: 0,
   };
-  const dropCount = kind === "storm" || fierce && kind === "rain" ? 130 : kind === "rain" ? 80 : 0;
-  const flakeCount = kind === "snow" ? 110 : 0;
+  const dropCount = kind === "storm" || fierce && kind === "rain" ? 96 : kind === "rain" ? 64 : 0;
+  const flakeCount = kind === "snow" ? 72 : 0;
   for (let index = 0; index < dropCount; index += 1) cast.drops.push(makeDrop(width, height, fierce));
   for (let index = 0; index < flakeCount; index += 1) cast.flakes.push(makeFlake(width, height));
   if (kind === "cloud") {
@@ -327,7 +327,7 @@ function createCast(spec) {
     }
   }
   if (kind === "sun") {
-    for (let index = 0; index < 28; index += 1) cast.motes.push(makeMote(width, height));
+    for (let index = 0; index < 18; index += 1) cast.motes.push(makeMote(width, height));
   }
   if (kind === "sun") {
     for (let index = 0; index < 36; index += 1) cast.stars.push(makeStar(width, height));
@@ -353,6 +353,38 @@ function wrapX(value, width) {
   if (value < -40) return width + 16;
   if (value > width + 40) return -16;
   return value;
+}
+
+/**
+ * 卡片自己的边框。下边框接雨滴的水花，也堆雪；雪天再给上边框留一条薄雪。
+ * 画布本身被卡片的圆角裁掉，所以两条边都铺到两头。
+ * 上边框那条雪沿是装饰，不拦雪花，雪才落得到下边框。
+ * @param {number} width
+ * @param {number} height
+ * @param {string} kind
+ */
+function frameEdges(width, height, kind) {
+  const edges = [{
+    left: 2,
+    top: height - 2,
+    width: Math.max(12, width - 4),
+    height: 18,
+    shelf: true,
+    radius: 0,
+  }];
+  if (kind === "snow") {
+    edges.push({
+      left: 2,
+      top: 8,
+      width: Math.max(12, width - 4),
+      height: 18,
+      shelf: true,
+      decor: true,
+      base: 7,
+      radius: 0,
+    });
+  }
+  return edges;
 }
 
 function edgeKey(edge) {
@@ -437,7 +469,7 @@ function shelfRow(cast, edge) {
   if (!row || Math.abs(row.length - count) > 2) {
     const next = [];
     for (let index = 0; index < count; index += 1) {
-      let value = 1.1;
+      let value = edge.base || 1.1;
       if (row && row.length) {
         const from = Math.min(row.length - 1, Math.floor((index * row.length) / count));
         value = row[from];
@@ -489,7 +521,7 @@ function firstShelf(body, edges) {
   let surface = 0;
   for (let index = 0; index < edges.length; index += 1) {
     const edge = edges[index];
-    if (edge.shelf === false || !edge.width) continue;
+    if (edge.shelf === false || edge.decor || !edge.width) continue;
     if (body.x < edge.left || body.x > edge.left + edge.width) continue;
     const y = groundY(edge, body.x);
     if (body.py < y + 1 && body.y >= y && body.vy > 0) {
@@ -583,7 +615,7 @@ function stepCast(cast, dt, edges) {
     pushBody(flake, step, wind + sway / 80);
     const shelf = firstShelf(flake, shelves);
     if (shelf && slopeHolds(shelf, flake.x)) {
-      depositSnow(shelfRow(cast, shelf), shelf, flake.x, 0.42);
+      depositSnow(shelfRow(cast, shelf), shelf, flake.x, 1.6);
       respawnFlake(flake, width);
     } else if (flake.y > height + 12) {
       respawnFlake(flake, width);
@@ -682,12 +714,13 @@ function strikeCast(cast) {
   cast.bolt = makeBolt(cast.width, cast.height);
 }
 
-/** 横滑时风短时间跟着加快。 */
+/** 横滑、快滚时风短时间跟着加快。 */
 function nudgeCast(cast, x, y, dx) {
   if (!cast || Math.abs(dx) < 4) return;
+  const push = Math.min(1, Math.abs(dx) / 60);
   cast.gustDir = dx < 0 ? -1 : 1;
-  cast.gustBoost = 460;
-  cast.gustLeft = 0.9;
+  cast.gustBoost = Math.max(cast.gustBoost || 0, 300 + push * 520);
+  cast.gustLeft = Math.max(cast.gustLeft || 0, 0.7 + push * 0.7);
 }
 
 /** 手指抹开顶边上的一层雪。旁边较高的雪会再塌进来。 */
@@ -788,65 +821,135 @@ function makeFlakeSprite() {
   }
 }
 
+/**
+ * 太阳：没有硬边。从外到内是整卡暖光、柔光晕、缓慢转的光芒、球体本身。
+ */
 function paintDaySun(ctx, cast, phase, focus) {
   const width = cast.width;
   const height = cast.height;
   const cx = focus.x * width;
   const cy = focus.y * height;
   const high = Math.max(0.25, 1 - focus.y * 2.2);
-  const reach = Math.sqrt(width * width + height * height);
-  const glow = ctx.createRadialGradient(cx, cy, 16, cx, cy, reach);
+  const radius = Math.max(16, Math.min(width, height) * 0.07) * (0.88 + high * 0.22);
+  const time = cast.time || 0;
+
+  const reach = Math.min(width, height) * 0.98;
+  const wash = ctx.createRadialGradient(cx, cy, radius * 0.7, cx, cy, reach);
   if (phase === "dusk") {
-    glow.addColorStop(0, `rgba(255, 176, 110, ${0.55 + high * 0.2})`);
-    glow.addColorStop(0.3, "rgba(236, 120, 96, 0.28)");
-    glow.addColorStop(1, "rgba(214, 96, 84, 0.12)");
+    wash.addColorStop(0, "rgba(255, 178, 112, 0.3)");
+    wash.addColorStop(0.45, "rgba(240, 132, 96, 0.12)");
+    wash.addColorStop(1, "rgba(232, 108, 88, 0)");
   } else if (phase === "dawn") {
-    glow.addColorStop(0, `rgba(255, 206, 164, ${0.5 + high * 0.2})`);
-    glow.addColorStop(0.32, "rgba(244, 164, 140, 0.26)");
-    glow.addColorStop(1, "rgba(236, 150, 132, 0.1)");
+    wash.addColorStop(0, "rgba(255, 208, 168, 0.28)");
+    wash.addColorStop(0.45, "rgba(248, 176, 150, 0.11)");
+    wash.addColorStop(1, "rgba(244, 160, 140, 0)");
   } else {
-    glow.addColorStop(0, `rgba(255, 214, 120, ${0.45 + high * 0.3})`);
-    glow.addColorStop(0.28, "rgba(255, 196, 110, 0.22)");
-    glow.addColorStop(1, "rgba(255, 186, 120, 0.06)");
+    wash.addColorStop(0, "rgba(255, 224, 150, 0.26)");
+    wash.addColorStop(0.45, "rgba(255, 205, 130, 0.1)");
+    wash.addColorStop(1, "rgba(255, 198, 140, 0)");
   }
-  ctx.fillStyle = glow;
+  ctx.fillStyle = wash;
   ctx.fillRect(0, 0, width, height);
+
   for (let index = 0; index < cast.motes.length; index += 1) {
     const mote = cast.motes[index];
     fillDisc(ctx, mote.x, mote.y, mote.r, `rgba(255, 236, 190, ${mote.alpha})`);
   }
-  fillDisc(ctx, cx, cy, 28 + high * 10, phase === "dusk" ? "#f0a04a" : "#f6c445");
-  ctx.strokeStyle = "rgba(255, 228, 160, 0.8)";
-  ctx.lineWidth = 7;
+
+  const bloom = ctx.createRadialGradient(cx, cy, radius * 0.5, cx, cy, radius * 4.2);
+  bloom.addColorStop(0, "rgba(255, 228, 158, 0.42)");
+  bloom.addColorStop(0.4, "rgba(255, 208, 132, 0.14)");
+  bloom.addColorStop(1, "rgba(255, 198, 128, 0)");
+  ctx.fillStyle = bloom;
   ctx.beginPath();
-  ctx.arc(cx, cy, 46 + high * 8, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.arc(cx, cy, radius * 4.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  const rays = 16;
+  const turn = time * 0.07;
+  ctx.save();
+  ctx.lineCap = "round";
+  for (let index = 0; index < rays; index += 1) {
+    const angle = turn + (index * Math.PI * 2) / rays;
+    const pulse = 0.5 + 0.5 * Math.sin(time * 1.1 + index * 1.7);
+    const inner = radius * 1.12;
+    const outer = radius * (1.32 + pulse * 0.34);
+    ctx.strokeStyle = `rgba(255, 240, 196, ${0.1 + pulse * 0.16})`;
+    ctx.lineWidth = Math.max(1.2, radius * 0.055);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
+    ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const halo = ctx.createRadialGradient(cx, cy, radius * 0.72, cx, cy, radius * 1.9);
+  halo.addColorStop(0, "rgba(255, 248, 222, 0.5)");
+  halo.addColorStop(1, "rgba(255, 234, 180, 0)");
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 1.9, 0, Math.PI * 2);
+  ctx.fill();
+
+  const core = ctx.createRadialGradient(
+    cx - radius * 0.3,
+    cy - radius * 0.34,
+    radius * 0.12,
+    cx,
+    cy,
+    radius
+  );
+  core.addColorStop(0, "#fffdf4");
+  core.addColorStop(0.45, "#ffefb9");
+  core.addColorStop(0.82, phase === "dusk" ? "#ffcf78" : "#ffd56d");
+  core.addColorStop(1, phase === "dusk" ? "#f2a24e" : "#f6b745");
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
 }
 
-function paintMoon(ctx, x, y, phaseKey) {
-  const radius = 18;
+function paintMoon(ctx, x, y, phaseKey, shade) {
+  const radius = 16;
   const shift = MOON_SHIFT[phaseKey] === undefined ? 0 : MOON_SHIFT[phaseKey];
+  // 暗面 = 夜光之后的天色再加月亮自己那层光晕，几乎和周围一样，只留亮面
+  const dark = rgbCss(mixRgb(shade || [32, 44, 64], [228, 236, 252], 0.3));
+
+  const glow = ctx.createRadialGradient(x, y, radius * 0.6, x, y, radius * 3.8);
+  glow.addColorStop(0, "rgba(228, 236, 252, 0.3)");
+  glow.addColorStop(1, "rgba(214, 228, 250, 0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 3.8, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.save();
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.clip();
-  ctx.fillStyle = "#f4f1e4";
+  const body = ctx.createRadialGradient(
+    x - radius * 0.35,
+    y - radius * 0.4,
+    radius * 0.1,
+    x,
+    y,
+    radius
+  );
+  body.addColorStop(0, "#fdfbf2");
+  body.addColorStop(0.75, "#f1eddd");
+  body.addColorStop(1, "#dcd7c5");
+  ctx.fillStyle = body;
   ctx.fillRect(x - radius - 2, y - radius - 2, radius * 2 + 4, radius * 2 + 4);
   if (Math.abs(shift) >= 1) {
-    ctx.fillStyle = "#243044";
+    ctx.fillStyle = dark;
     ctx.fillRect(x - radius - 2, y - radius - 2, radius * 2 + 4, radius * 2 + 4);
   } else if (shift) {
-    ctx.fillStyle = "#2c3c56";
+    ctx.fillStyle = dark;
     ctx.beginPath();
     ctx.arc(x - shift * radius * 1.2, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(255, 244, 214, 0.45)";
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
 }
 
 function paintNightSky(ctx, cast, focus, phaseKey) {
@@ -854,6 +957,7 @@ function paintNightSky(ctx, cast, focus, phaseKey) {
   const height = cast.height;
   const mx = (focus.x || 0.72) * width;
   const my = (focus.y || 0.16) * height;
+  const glowRgb = [214, 224, 246];
   const glow = ctx.createRadialGradient(mx, my, 10, mx, my, Math.max(width, height) * 0.7);
   const bright = phaseKey === "full" ? 0.46 : phaseKey === "new" ? 0.08 : 0.28;
   glow.addColorStop(0, `rgba(214, 224, 246, ${bright})`);
@@ -865,7 +969,9 @@ function paintNightSky(ctx, cast, focus, phaseKey) {
     const twinkle = 0.45 + 0.55 * Math.sin(cast.time * 1.4 + star.phase);
     fillDisc(ctx, star.x, star.y, star.r, `rgba(255, 255, 255, ${star.alpha * twinkle})`);
   }
-  paintMoon(ctx, mx, my, phaseKey || "full");
+  // 月亮暗面用"这层夜光之后"的底色，才不会看起来像一块黑饼
+  const shade = mixRgb(skyColorAt(cast.kind, "night", focus.y || 0.16), glowRgb, bright);
+  paintMoon(ctx, mx, my, phaseKey || "full", shade);
 }
 
 function paintCloud(ctx, cloud, phase) {
@@ -892,12 +998,12 @@ function paintFog(ctx, cast, phase) {
   ctx.save();
   for (let index = 0; index < cast.veils.length; index += 1) {
     const veil = cast.veils[index];
-    const tone = phase === "night" ? "88, 98, 112" : phase === "dawn" ? "210, 204, 198" : "214, 214, 210";
+    const tone = phase === "night" ? "126, 138, 154" : phase === "dawn" ? "238, 232, 226" : "236, 240, 243";
     const y = veil.y * height;
     const h = veil.h * height;
     const fade = ctx.createLinearGradient(0, y, 0, y + h);
     fade.addColorStop(0, `rgba(${tone}, 0)`);
-    fade.addColorStop(0.45, `rgba(${tone}, ${veil.alpha})`);
+    fade.addColorStop(0.45, `rgba(${tone}, ${Math.min(0.62, veil.alpha * 1.7)})`);
     fade.addColorStop(1, `rgba(${tone}, 0)`);
     ctx.fillStyle = fade;
     ctx.fillRect(veil.x - width, y, width * 3, h);
@@ -917,7 +1023,7 @@ function paintFog(ctx, cast, phase) {
 }
 
 function paintBlanket(ctx, edge, row, viewHeight) {
-  if (edge.top < -4 || edge.top > viewHeight - 8) return;
+  if (edge.top < -4 || edge.top > viewHeight + 8) return;
   let peak = 0;
   for (let index = 0; index < row.length; index += 1) if (row[index] > peak) peak = row[index];
   if (peak < 0.6) return;
@@ -937,9 +1043,9 @@ function paintBlanket(ctx, edge, row, viewHeight) {
   const crest = groundY(edge, edge.left + edge.width / 2) - peak;
   const foot = edge.top + 4;
   const fill = ctx.createLinearGradient(0, crest, 0, foot);
-  fill.addColorStop(0, "rgba(255,255,255,0.97)");
-  fill.addColorStop(0.55, "rgba(236,244,252,0.92)");
-  fill.addColorStop(1, "rgba(206,220,234,0.45)");
+  fill.addColorStop(0, "rgba(255,255,255,0.98)");
+  fill.addColorStop(0.55, "rgba(238,246,254,0.94)");
+  fill.addColorStop(1, "rgba(212,228,244,0.62)");
   ctx.fillStyle = fill;
   ctx.fill();
 }
@@ -949,12 +1055,13 @@ function paintSplashes(ctx, cast) {
     const splash = cast.splashes[index];
     if (splash.life <= 0) continue;
     const alpha = Math.max(0, splash.life / 0.32);
-    ctx.strokeStyle = `rgba(255,255,255,${0.85 * alpha})`;
-    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = `rgba(244,250,255,${0.9 * alpha})`;
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(splash.x, splash.y);
-    ctx.lineTo(splash.x - splash.vx * 0.03, splash.y - Math.max(4, -splash.vy * 0.03));
+    ctx.lineTo(splash.x - splash.vx * 0.04, splash.y - Math.max(6, -splash.vy * 0.04));
     ctx.stroke();
+    fillDisc(ctx, splash.x, splash.y, 0.6 + alpha * 2.2, `rgba(255,255,255,${0.85 * alpha})`);
   }
 }
 
@@ -968,52 +1075,102 @@ function traceBolt(ctx, points) {
 }
 
 /**
- * @param {CanvasRenderingContext2D} ctx
- * @param {object} cast
- * @param {string} phase
- * @param {{x:number,y:number}} focus 太阳的比例位置
- * @param {Array} edges
- * @param {{x?:number,y?:number,phase?:string}} moon
+ * 卡片铺满天空以后，底色要压得住白字：上深下亮，最亮的一点留给地平线。
+ * @returns {string[]} 上、中、下三段颜色
  */
 function skyColors(kind, phase) {
   const night = phase === "night";
   const dawn = phase === "dawn";
   const dusk = phase === "dusk";
   if (kind === "sun") {
-    if (night) return ["#1c2740", "#3d4e6e"];
-    if (dawn) return ["#f3a88f", "#f8d0bf"];
-    if (dusk) return ["#ef8d62", "#f0c2b4"];
-    return ["#ffc56a", "#ffe7b0"];
+    if (night) return ["#101a30", "#25334f", "#46536b"];
+    if (dawn) return ["#4a5f92", "#c98f94", "#f3c8a8"];
+    if (dusk) return ["#3d3f70", "#b96a68", "#f0a878"];
+    return ["#2e6fae", "#6ba3d6", "#f0d9b5"];
   }
   if (kind === "cloud") {
-    if (night) return ["#243044", "#45566f"];
-    if (dawn) return ["#c9b0a8", "#e4d0c8"];
-    if (dusk) return ["#c48b86", "#e3c2bc"];
-    return ["#9eb4c9", "#d5e2ee"];
+    if (night) return ["#141d2c", "#2a3549", "#465063"];
+    if (dawn) return ["#6d6076", "#b79a9c", "#dcc3b4"];
+    if (dusk) return ["#5a4a63", "#a97b7c", "#cfa493"];
+    return ["#4a6b8f", "#8ba7bd", "#d9d7cd"];
   }
   if (kind === "snow") {
-    if (night) return ["#2a3648", "#6a7c90"];
-    return ["#7e96b0", "#e7eef5"];
+    if (night) return ["#19253a", "#31425c", "#556a84"];
+    return ["#4f7aa8", "#93b3cd", "#e8eef4"];
   }
   if (kind === "fog") {
-    if (night) return ["#3a4250", "#7d8796"];
-    return ["#d5d4d2", "#f4f1ef"];
+    if (night) return ["#232a34", "#454d58", "#6a717a"];
+    return ["#6d7c8a", "#9aa7b2", "#cfd6da"];
   }
-  if (kind === "storm") return night ? ["#141b28", "#334256"] : ["#2c3a4c", "#5c6e84"];
-  if (night) return ["#1c2636", "#3e5168"];
-  return ["#6d8cab", "#c5d3e0"];
+  if (kind === "storm") return night ? ["#0b101a", "#18202e", "#2a3646"] : ["#222c3c", "#3d4c60", "#5b6b80"];
+  if (night) return ["#0e1521", "#1f2b3b", "#35455a"];
+  return ["#3c5265", "#6d8496", "#a7b5bf"];
+}
+
+function hexToRgb(hex) {
+  const text = String(hex || "").replace("#", "");
+  if (text.length < 6) return [128, 128, 128];
+  return [
+    parseInt(text.slice(0, 2), 16),
+    parseInt(text.slice(2, 4), 16),
+    parseInt(text.slice(4, 6), 16),
+  ];
+}
+
+/** 竖直方向某一点上的天空颜色，用来让月亮的暗面融进夜色。 */
+function skyColorAt(kind, phase, y) {
+  const stops = skyColors(kind, phase);
+  const colors = [hexToRgb(stops[0]), hexToRgb(stops[1]), hexToRgb(stops[2])];
+  const middle = 0.56;
+  const t = Math.max(0, Math.min(1, y || 0));
+  const from = t <= middle ? colors[0] : colors[1];
+  const to = t <= middle ? colors[1] : colors[2];
+  const mix = t <= middle ? t / middle : (t - middle) / (1 - middle);
+  return [
+    from[0] + (to[0] - from[0]) * mix,
+    from[1] + (to[1] - from[1]) * mix,
+    from[2] + (to[2] - from[2]) * mix,
+  ];
+}
+
+function mixRgb(from, to, t) {
+  return [
+    from[0] + (to[0] - from[0]) * t,
+    from[1] + (to[1] - from[1]) * t,
+    from[2] + (to[2] - from[2]) * t,
+  ];
+}
+
+function rgbCss(color) {
+  return `rgb(${Math.round(color[0])}, ${Math.round(color[1])}, ${Math.round(color[2])})`;
+}
+
+/** 天空够暗时，风纹和字一样用浅色，才看得清。 */
+function skyIsDark(kind, phase) {
+  const bottom = hexToRgb(skyColors(kind, phase)[2]);
+  return (bottom[0] * 0.299 + bottom[1] * 0.587 + bottom[2] * 0.114) / 255 < 0.62;
 }
 
 function paintSkyFill(ctx, cast, phase) {
   const colors = skyColors(cast.kind, phase);
   const fill = ctx.createLinearGradient(0, 0, 0, cast.height);
   fill.addColorStop(0, colors[0]);
-  fill.addColorStop(1, colors[1]);
+  fill.addColorStop(0.56, colors[1]);
+  fill.addColorStop(1, colors[2]);
   ctx.fillStyle = fill;
   ctx.fillRect(0, 0, cast.width, cast.height);
 }
 
-function paintCast(ctx, cast, phase, focus, edges, moon) {
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {object} cast
+ * @param {string} phase
+ * @param {{x:number,y:number}} focus 太阳的比例位置
+ * @param {Array} edges
+ * @param {{x?:number,y?:number,phase?:string}} moon
+ * @param {{punch?: boolean}} [options] 整页画布要把卡片挖开；画在卡片里的画布不用挖
+ */
+function paintCast(ctx, cast, phase, focus, edges, moon, options) {
   const width = cast.width;
   const height = cast.height;
   const night = phase === "night";
@@ -1028,11 +1185,22 @@ function paintCast(ctx, cast, phase, focus, edges, moon) {
     paintNightSky(ctx, cast, { x: moonPoint.x, y: moonPoint.y }, moonPoint.phase);
   }
   for (let index = 0; index < cast.clouds.length; index += 1) paintCloud(ctx, cast.clouds[index], phase);
-  if (cast.kind === "fog") paintFog(ctx, cast, phase);
-  const gustColor = night ? "rgba(230, 238, 248," : "rgba(48, 68, 92,";
+  if (cast.kind === "fog") {
+    if (!night) {
+      const wash = ctx.createLinearGradient(0, 0, 0, height * 0.66);
+      wash.addColorStop(0, "rgba(255, 250, 238, 0.38)");
+      wash.addColorStop(1, "rgba(255, 250, 238, 0)");
+      ctx.fillStyle = wash;
+      ctx.fillRect(0, 0, width, height * 0.66);
+    }
+    paintFog(ctx, cast, phase);
+  }
+  const gustDark = skyIsDark(cast.kind, phase);
+  const gustColor = gustDark ? "rgba(238, 244, 253," : "rgba(255, 255, 255,";
+  const gustFade = gustDark ? 0.72 : 0.5;
   for (let index = 0; index < cast.gusts.length; index += 1) {
     const gust = cast.gusts[index];
-    ctx.strokeStyle = `${gustColor}${gust.alpha})`;
+    ctx.strokeStyle = `${gustColor}${(gust.alpha * gustFade).toFixed(3)})`;
     ctx.lineWidth = gust.thick;
     ctx.beginPath();
     ctx.moveTo(gust.x, gust.y);
@@ -1091,7 +1259,7 @@ function paintCast(ctx, cast, phase, focus, edges, moon) {
       ctx.stroke();
     }
   }
-  punchCovers(ctx, edges);
+  if (options && options.punch) punchCovers(ctx, edges);
   if (cast.kind === "snow") {
     const rows = cast.shelfEdges || [];
     for (let index = 0; index < rows.length; index += 1) {
@@ -1129,13 +1297,13 @@ function runSelfCheck() {
   assert(clouds.clouds[0].x !== before, "cloud should travel");
 
   const rain = createCast({ kind: "rain", windy: true, heavy: true, width: 360, height: 700 });
-  assert(rain.drops.length === 130, "heavy rain count");
+  assert(rain.drops.length === 96, "heavy rain count");
   const drop = rain.drops[0];
   const fall = drop.vy;
   stepCast(rain, 0.05);
   assert(drop.y !== drop.py, "rain should move");
   nudgeCast(rain, 10, 10, 30);
-  assert(rain.gustBoost === 460, "swipe should raise the wind");
+  assert(rain.gustBoost > 0 && rain.gustLeft > 0, "swipe should raise the wind");
 
   const side = createCast({ kind: "rain", windy: false, heavy: false, width: 360, height: 700 });
   side.drops[0].x = 120;
@@ -1148,7 +1316,11 @@ function runSelfCheck() {
   assert(side.drops[0].x > 80 && side.drops[0].x < 180, "rain keeps crossing the card");
 
   const snow = createCast({ kind: "snow", windy: false, heavy: false, width: 300, height: 600 });
-  assert(snow.flakes.length === 110, "snow count");
+  assert(snow.flakes.length === 72, "snow count");
+  const frame = frameEdges(300, 600, "snow");
+  assert(frame.length === 2 && frame[0].top === 598, "card frame carries a bottom shelf");
+  assert(frame[1].top === 8 && frame[1].decor, "top border keeps a decorative snow rim");
+  assert(frameEdges(300, 600, "rain").length === 1, "rain does not need a top rim");
   const edge = { left: 20, top: 180, width: 200, height: 80, shelf: true };
   snow.flakes.forEach((flake, index) => {
     if (index === 0) return;
@@ -1180,6 +1352,66 @@ function runSelfCheck() {
   const storm = createCast({ kind: "storm", windy: false, heavy: true, width: 300, height: 600 });
   strikeCast(storm);
   assert(storm.flash > 0 && storm.bolt.segments.length > 2, "bolt");
+
+  // 画布铺满整张卡片以后，每种天气、每个时段都要画得出来
+  const stub = () => {
+    const calls = [];
+    const gradient = { addColorStop: (stop, color) => calls.push([stop, color]) };
+    const ctx = new Proxy({}, {
+      get(target, key) {
+        if (key === "createLinearGradient" || key === "createRadialGradient") return () => gradient;
+        return (...args) => calls.push([String(key)].concat(args));
+      },
+      set() {
+        return true;
+      },
+    });
+    return { ctx, calls };
+  };
+  const kinds = ["sun", "cloud", "fog", "rain", "snow", "storm"];
+  const phases = ["day", "dawn", "dusk", "night"];
+  for (let kindIndex = 0; kindIndex < kinds.length; kindIndex += 1) {
+    for (let phaseIndex = 0; phaseIndex < phases.length; phaseIndex += 1) {
+      const name = kinds[kindIndex];
+      const phase = phases[phaseIndex];
+      const card = createCast({ kind: name, windy: true, heavy: name === "storm", width: 320, height: 560 });
+      const stubbed = stub();
+      paintCast(
+        stubbed.ctx,
+        card,
+        phase,
+        { x: 0.3, y: 0.2 },
+        frameEdges(320, 560, name),
+        { x: 0.7, y: 0.15, phase: "full" }
+      );
+      const colors = skyColors(name, phase);
+      const stops = stubbed.calls.filter((call) => typeof call[0] === "number");
+      assert(stops.length >= 3 && stops[0][1] === colors[0] && stops[2][1] === colors[2], `${name} ${phase} paints the card sky`);
+    }
+  }
+
+  const wetCard = createCast({ kind: "rain", windy: false, heavy: false, width: 320, height: 560 });
+  const wetEdges = frameEdges(320, 560, "rain");
+  wetCard.drops.forEach((item) => {
+    item.gravity = 0;
+    item.vy = 0;
+    item.vx = 0;
+  });
+  const hitter = wetCard.drops[0];
+  hitter.x = 120;
+  hitter.px = 120;
+  hitter.y = wetEdges[0].top - 1;
+  hitter.py = wetEdges[0].top - 4;
+  hitter.vy = 240;
+  stepCast(wetCard, 0.02, wetEdges);
+  assert(wetCard.splashes.some((splash) => splash.life > 0), "rain splashes on the bottom border");
+
+  const cappedCard = createCast({ kind: "snow", windy: false, heavy: false, width: 320, height: 560 });
+  const cappedEdges = frameEdges(320, 560, "snow");
+  stepCast(cappedCard, 0.02, cappedEdges);
+  assert(Math.max.apply(null, cappedCard.shelves[edgeKey(cappedEdges[1])]) >= 7, "top border shows snow");
+  assert(firstShelf({ x: 160, y: 9, py: 4, vy: 200 }, cappedEdges) === null, "top rim lets flakes fall through");
+
   console.log("sky self-check ok");
 }
 
@@ -1191,6 +1423,9 @@ module.exports = {
   skyMoment,
   moonMoment,
   moonPhaseKey,
+  skyColors,
+  clockMinutes,
+  frameEdges,
   needsCanvas,
   needsHit,
   createCast,

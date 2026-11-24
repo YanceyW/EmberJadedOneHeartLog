@@ -795,6 +795,7 @@ function buildOutlook(hourly, now) {
 
   const hours = today.map((item) => ({
     label: item.hour === currentHour ? "现在" : hourWords(item.hour).short,
+    hour: item.hour,
     temp: item.temp,
     kind: item.kind,
     mark: item.rainy || (item.scale >= nowScale + 2 && item.scale >= 4),

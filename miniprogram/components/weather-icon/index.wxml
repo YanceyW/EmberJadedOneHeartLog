@@ -1,0 +1,4 @@
+<view class="wi wi-{{shape}}" style="--wi: {{size}}rpx;">
+  <view class="wi-a"></view>
+  <view class="wi-b"></view>
+</view>

@@ -1,4 +1,4 @@
-<scroll-view class="page" scroll-y enhanced show-scrollbar="{{false}}">
+<scroll-view class="page" scroll-y bindscroll="onPageScroll">
   <view class="hello card">
     <view class="mini-heart"></view>
     <view>
@@ -8,28 +8,30 @@
     </view>
   </view>
 
-  <view class="card weather-card">
-    <view class="sky-stage" wx:if="{{skyOn}}">
-      <canvas type="2d" id="card-sky" class="sky-stage-canvas" disable-scroll="{{true}}" bindtouchstart="onStageStart" bindtouchmove="onStageMove" bindtouchend="onStageEnd" bindtouchcancel="onStageEnd"></canvas>
-    </view>
+  <view class="card weather-card {{skyOn ? 'sky-on' : 'no-sky'}} {{skyBroken ? 'sky-broken' : ''}} {{skyDark ? 'is-dark' : ''}}" style="{{skyStyle}}" bindtouchstart="onSkyTouchStart" bindtouchmove="onSkyTouchMove" bindtouchend="onSkyTouchEnd" bindtouchcancel="onSkyTouchEnd">
+    <view class="sky-fallback"></view>
+    <canvas wx:if="{{skyOn && !skyBroken}}" type="2d" id="card-sky" class="sky-canvas" bindrendererror="onSkyRenderError" binderror="onSkyRenderError"></canvas>
+    <view class="sky-veil" wx:if="{{skyOn}}"></view>
     <view class="weather-copy">
     <view class="row-between">
       <view>
         <view class="place" wx:if="{{weatherPlace}}">{{weatherPlace}}</view>
-        <view class="weather-name" wx:if="{{weatherName}}">{{weatherName}}</view>
+        <view class="weather-chip" wx:if="{{weatherName}}">
+          <weather-icon class="chip-icon" kind="{{weatherKind}}" tone="{{skyPhase}}" size="{{34}}" />
+          <text class="weather-chip-text">{{weatherName}}</text>
+        </view>
       </view>
       <view class="refresh" bindtap="refreshWeather">{{refreshing ? '刷新中' : '刷新'}}</view>
     </view>
     <view class="weather-hero" wx:if="{{weatherTemp}}" bindlongpress="holdTemp">
       <view class="temp-big">{{weatherTemp}}°</view>
-      <view class="sky-icon big {{weatherKind}}" wx:if="{{weatherKind}}"></view>
     </view>
     <view class="title" wx:else bindlongpress="holdTemp">{{weatherText}}</view>
     <view class="muted" wx:if="{{tempMin !== '' && tempMax !== ''}}">{{tempMin}}° / {{tempMax}}°<text wx:if="{{feelsLike}}"> · 体感 {{feelsLike}}°</text></view>
     <scroll-view class="hour-scroll" scroll-x wx:if="{{hours.length}}">
       <view class="hour {{item.mark ? 'mark' : ''}}" wx:for="{{hours}}" wx:key="label">
         <view class="hour-label">{{item.label}}</view>
-        <view class="sky-icon tiny {{item.kind}}"></view>
+        <weather-icon class="hour-icon" kind="{{item.kind}}" tone="{{item.tone}}" size="{{32}}" />
         <view>{{item.temp}}°</view>
       </view>
     </scroll-view>

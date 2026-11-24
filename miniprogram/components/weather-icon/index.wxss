@@ -1,0 +1,294 @@
+:host {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.wi {
+  position: relative;
+  width: var(--wi, 36rpx);
+  height: var(--wi, 36rpx);
+  flex-shrink: 0;
+}
+
+.wi-a,
+.wi-b {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+/* 太阳：暖色圆盘 + 一圈缓慢转动的光芒 */
+.wi-sun .wi-a {
+  left: 50%;
+  top: 50%;
+  width: calc(var(--wi) * 0.5);
+  height: calc(var(--wi) * 0.5);
+  margin-left: calc(var(--wi) * -0.25);
+  margin-top: calc(var(--wi) * -0.25);
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fff8dc 0%, #ffd873 48%, #f2a13a 100%);
+  box-shadow: 0 0 calc(var(--wi) * 0.3) rgba(255, 206, 112, 0.8);
+}
+
+.wi-sun .wi-b {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 226, 152, 0.95) 0deg 7deg, rgba(255, 226, 152, 0) 7deg 45deg);
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 46%, #000 58%, #000 74%, rgba(0, 0, 0, 0) 84%);
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 46%, #000 58%, #000 74%, rgba(0, 0, 0, 0) 84%);
+  animation: wi-spin 24s linear infinite;
+}
+
+@keyframes wi-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 云：一条底再加两团圆 */
+.wi-cloud .wi-a,
+.wi-cloudmoon .wi-a,
+.wi-rain .wi-a,
+.wi-storm .wi-a {
+  left: 8%;
+  right: 8%;
+  bottom: 22%;
+  height: calc(var(--wi) * 0.28);
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #ffffff 0%, #dde8f4 100%);
+  box-shadow: 0 calc(var(--wi) * 0.04) calc(var(--wi) * 0.11) rgba(56, 82, 116, 0.28);
+}
+
+.wi-cloud .wi-a::before,
+.wi-cloudmoon .wi-a::before,
+.wi-rain .wi-a::before,
+.wi-storm .wi-a::before {
+  content: "";
+  position: absolute;
+  left: 8%;
+  bottom: 38%;
+  width: calc(var(--wi) * 0.42);
+  height: calc(var(--wi) * 0.42);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff 0%, #e6f0fa 100%);
+}
+
+.wi-cloud .wi-a::after,
+.wi-cloudmoon .wi-a::after,
+.wi-rain .wi-a::after,
+.wi-storm .wi-a::after {
+  content: "";
+  position: absolute;
+  right: 12%;
+  bottom: 34%;
+  width: calc(var(--wi) * 0.32);
+  height: calc(var(--wi) * 0.32);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff 0%, #e2ecf7 100%);
+}
+
+.wi-rain .wi-a,
+.wi-storm .wi-a {
+  background: linear-gradient(180deg, #f4f9fd 0%, #cfdfec 100%);
+}
+
+/* 雨：云下三条斜雨丝 */
+.wi-rain .wi-b {
+  left: 24%;
+  top: 72%;
+  width: calc(var(--wi) * 0.07);
+  height: calc(var(--wi) * 0.24);
+  border-radius: 999rpx;
+  background: #cfe8ff;
+  box-shadow: 0 0 calc(var(--wi) * 0.06) rgba(180, 220, 255, 0.85);
+  transform: rotate(16deg);
+  opacity: 0.88;
+  animation: wi-rain-drop 1.5s ease-in-out infinite;
+}
+
+.wi-rain .wi-b::before,
+.wi-rain .wi-b::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 999rpx;
+  background: #cfe8ff;
+}
+
+.wi-rain .wi-b::before {
+  left: calc(var(--wi) * 0.2);
+  top: calc(var(--wi) * -0.04);
+  animation: wi-rain-drop 1.5s ease-in-out -0.5s infinite;
+}
+
+.wi-rain .wi-b::after {
+  left: calc(var(--wi) * 0.4);
+  top: calc(var(--wi) * -0.01);
+  animation: wi-rain-drop 1.5s ease-in-out -1s infinite;
+}
+
+@keyframes wi-rain-drop {
+  0%, 100% { opacity: 0.45; }
+  45% { opacity: 1; }
+}
+
+/* 雪：三根交叉的短棒 */
+.wi-snow .wi-a {
+  left: 50%;
+  top: 50%;
+  width: calc(var(--wi) * 0.68);
+  height: calc(var(--wi) * 0.11);
+  margin-left: calc(var(--wi) * -0.34);
+  margin-top: calc(var(--wi) * -0.055);
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0%, #ffffff 50%, rgba(255, 255, 255, 0.55) 100%);
+  box-shadow: 0 0 calc(var(--wi) * 0.16) rgba(214, 238, 255, 0.85);
+}
+
+.wi-snow .wi-a::before,
+.wi-snow .wi-a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 999rpx;
+  background: inherit;
+}
+
+.wi-snow .wi-a::before {
+  transform: rotate(60deg);
+}
+
+.wi-snow .wi-a::after {
+  transform: rotate(120deg);
+}
+
+/* 雾：三道横线 */
+.wi-fog .wi-a {
+  left: 12%;
+  top: 24%;
+  width: 76%;
+  height: calc(var(--wi) * 0.11);
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 calc(var(--wi) * 0.2) 0 rgba(255, 255, 255, 0.74),
+    0 calc(var(--wi) * 0.4) 0 rgba(255, 255, 255, 0.52);
+  animation: wi-fog 7s ease-in-out infinite;
+}
+
+@keyframes wi-fog {
+  0%, 100% { transform: translateX(calc(var(--wi) * -0.04)); }
+  50% { transform: translateX(calc(var(--wi) * 0.04)); }
+}
+
+/* 雷：云下一道闪电 */
+.wi-storm .wi-b {
+  left: 42%;
+  top: 56%;
+  width: calc(var(--wi) * 0.26);
+  height: calc(var(--wi) * 0.4);
+  background: linear-gradient(180deg, #ffe066 0%, #ff9f1c 100%);
+  clip-path: polygon(58% 0, 8% 54%, 44% 54%, 30% 100%, 96% 44%, 56% 44%);
+  box-shadow: 0 0 calc(var(--wi) * 0.12) rgba(255, 190, 80, 0.55);
+}
+
+/* 月亮：挡住一块做弯月，三颗小星落在缺口里 */
+.wi-moon {
+  filter: drop-shadow(0 0 calc(var(--wi) * 0.16) rgba(206, 226, 255, 0.6));
+}
+
+.wi-moon .wi-a {
+  left: 15%;
+  top: 12%;
+  width: calc(var(--wi) * 0.68);
+  height: calc(var(--wi) * 0.68);
+  border-radius: 50%;
+  background: linear-gradient(155deg, #fffdf2 0%, #f5f0dc 55%, #ddd8c4 100%);
+  -webkit-mask-image: radial-gradient(circle at 76% 30%, rgba(0, 0, 0, 0) calc(var(--wi) * 0.31), #000 calc(var(--wi) * 0.34));
+  mask-image: radial-gradient(circle at 76% 30%, rgba(0, 0, 0, 0) calc(var(--wi) * 0.31), #000 calc(var(--wi) * 0.34));
+}
+
+.wi-moon .wi-b {
+  left: 60%;
+  top: 24%;
+  width: calc(var(--wi) * 0.075);
+  height: calc(var(--wi) * 0.075);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    calc(var(--wi) * 0.14) calc(var(--wi) * 0.2) 0 rgba(255, 255, 255, 0.62),
+    calc(var(--wi) * -0.03) calc(var(--wi) * 0.34) 0 rgba(255, 255, 255, 0.45);
+  animation: wi-twinkle 4.5s ease-in-out infinite;
+}
+
+@keyframes wi-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* 日出／日落：半轮太阳压在地平线上，光芒只留在上半圈 */
+.wi-sunrise .wi-a,
+.wi-sunset .wi-a {
+  left: 50%;
+  top: 30%;
+  width: calc(var(--wi) * 0.46);
+  height: calc(var(--wi) * 0.23);
+  margin-left: calc(var(--wi) * -0.23);
+  border-radius: 999rpx 999rpx 0 0;
+  background: radial-gradient(circle at 42% 96%, #fffbe4 0%, #ffd889 46%, #f0a04c 100%);
+  box-shadow: 0 0 calc(var(--wi) * 0.2) rgba(255, 190, 112, 0.7);
+}
+
+.wi-sunset .wi-a {
+  background: radial-gradient(circle at 42% 96%, #fff3cd 0%, #ffc06a 46%, #e8792f 100%);
+}
+
+.wi-sunrise .wi-a::before,
+.wi-sunset .wi-a::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: calc(var(--wi) * 0.66);
+  height: calc(var(--wi) * 0.66);
+  margin-left: calc(var(--wi) * -0.33);
+  border-radius: 50%;
+  background: repeating-conic-gradient(from -90deg, rgba(255, 226, 152, 0.9) 0deg 6deg, rgba(255, 226, 152, 0) 6deg 30deg);
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 38%, #000 50%, #000 64%, rgba(0, 0, 0, 0) 74%);
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0) 38%, #000 50%, #000 64%, rgba(0, 0, 0, 0) 74%);
+  clip-path: inset(0 0 50% 0);
+}
+
+.wi-sunrise .wi-b,
+.wi-sunset .wi-b {
+  left: 5%;
+  right: 5%;
+  top: 52%;
+  height: calc(var(--wi) * 0.5);
+  border-radius: 50%;
+  border-top: calc(var(--wi) * 0.07) solid rgba(255, 255, 255, 0.9);
+}
+
+/* 夜里多云：云右上角探出一弯月 */
+.wi-cloudmoon .wi-a {
+  background: linear-gradient(180deg, #eef4fb 0%, #cedbe9 100%);
+}
+
+.wi-cloudmoon .wi-b {
+  left: 62%;
+  top: 1%;
+  width: calc(var(--wi) * 0.36);
+  height: calc(var(--wi) * 0.36);
+  border-radius: 50%;
+  background: linear-gradient(155deg, #fffdf2 0%, #f2edda 100%);
+  -webkit-mask-image: radial-gradient(circle at 78% 26%, rgba(0, 0, 0, 0) calc(var(--wi) * 0.16), #000 calc(var(--wi) * 0.18));
+  mask-image: radial-gradient(circle at 78% 26%, rgba(0, 0, 0, 0) calc(var(--wi) * 0.16), #000 calc(var(--wi) * 0.18));
+}

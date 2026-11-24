@@ -18,8 +18,9 @@
 - `miniprogram/app.js`：启动云开发，并用 `call` 调用云函数。
 - `miniprogram/app.json`：页面名单、导航颜色、位置隐私声明。
 - `miniprogram/app.wxss`：单独打开的页面用的底色、卡片和按钮。嵌在首页里的三个面板要用自己的样式。
-- `miniprogram/pages/main`：底部标签所在的滑动页。左右滑在首页、日历、聊天、记录、我之间切换。页面底色是原来的暖白色，天气动画只画在首页的天气卡片里。
-- `miniprogram/pages/home`：问候、对方留下的一句话、天气卡片、今日建议、最近一项安排。天气卡片顶部是一块小天空，晴、多云、风、雨、雪、雾、雷雨和晚上都在这块里。长按温度可以预览。今日建议超过 1 小时才重新生成。
+- `miniprogram/components/weather-icon`：天气图标。晴、多云、雨、雪、雾、雷六种都用样式画出来，跟着传入的尺寸缩放，压在天空上也看得清。传 `tone`（day/dawn/dusk/night）就按时段换样子：夜里晴天出月亮，日出日落时是半轮压在地平线上的太阳，夜里多云是云角上探出月亮。
+- `miniprogram/pages/main`：底部标签所在的滑动页。左右滑在首页、日历、聊天、记录、我之间切换。页面底色是原来的暖白色，天空只画在首页的天气卡片里。
+- `miniprogram/pages/home`：问候、对方留下的一句话、天气卡片、今日建议、最近一项安排。天气卡片整张是一块天空，晴、多云、风、雨、雪、雾、雷雨和晚上都铺满卡片，字浮在天空上面。横滑卡片或上下快滚会让风变大；雨点落到底边会溅出水花；雪天边框上会慢慢积雪，抹一下下边框就能擦掉；雾天点一下能擦开一团雾。每小时那一行的图标跟着当时的天色走：白天大太阳，黄昏是落日，入夜换成月亮。长按温度可以预览。今日建议超过 1 小时才重新生成。
 - `miniprogram/pages/calendar`：月历、农历、事项图标、今年的黄历宜忌，以及临近安排。黄历在手机上计算，不请求模型。
 - `miniprogram/pages/records`：纪念日、生日、经期、日程放在一页，可以筛选类型，按日期或类型排序。
 - `miniprogram/pages/mine`：昵称、对象状态，以及编辑资料、权限和以后的入口。
@@ -34,6 +35,7 @@
 - `miniprogram/utils/filter.js`：月历筛选记在本机，按微信账号分开。
 - `miniprogram/utils/lunar.js`：生日滚轮和月历农历。换算用 `utils/lunar-lib.js`（lunar-javascript 1.7.8，MIT）。
 - `miniprogram/utils/almanac.js`：只计算今年每一天的宜和忌。
+- `miniprogram/utils/sky.js`：天气卡片的时段、配色和粒子。画布铺满整张卡片，文字压在画布上面。
 - `cloudfunctions/api/index.js`：唯一的云函数。按 `action` 处理登录、资料、对象、经期、纪念日、日程、天气、今日建议、留言和追问。
 - `cloudfunctions/api/secret.js`：DeepSeek 密钥和和风天气密钥，只留在本机和云端。
 

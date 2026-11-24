@@ -5,7 +5,7 @@ const { solarToLunar } = require("../../utils/lunar");
 const { birthdayPhrase } = require("../../utils/birthday");
 const { getTabClearance, watchTabClearance } = require("../../utils/layout");
 const { TEMPLATE_ID, requestOnce } = require("../../utils/subscribe");
-const { skyMoment, moonMoment, moonPhaseKey, createCast, stepCast, paintCast, nudgeCast, brushSnow, pokeFog, makeFlakeSprite } = require("../../utils/sky");
+const { skyMoment, moonMoment, moonPhaseKey, skyColors, clockMinutes, frameEdges, createCast, stepCast, paintCast, nudgeCast, brushSnow, pokeFog, makeFlakeSprite } = require("../../utils/sky");
 
 const DEFAULT_NOTE = "今天也要好好照顾自己。";
 const READING_KEY = "reading-cache";
@@ -79,6 +79,10 @@ Component({
     skyPicked: "",
     skyNight: false,
     skyOn: false,
+    skyDark: false,
+    skyPhase: "day",
+    skyBroken: false,
+    skyStyle: "",
   },
   properties: {
     active: {
@@ -91,11 +95,7 @@ Component({
       if (value && this.ready) {
         this.refreshLists();
       }
-      if (value) this.syncCardSky();
-      else {
-        this.stopCardSky();
-        if (this.data.skyOn) this.setData({ skyOn: false });
-      }
+      this.syncSkyPause();
     },
   },
   lifetimes: {
@@ -110,15 +110,22 @@ Component({
         this.unwatchClearance();
         this.unwatchClearance = null;
       }
+      this.pauseCardSky();
+      this.skyToken = (this.skyToken || 0) + 1;
+      this.sky = null;
+      this.cardFocus = null;
+      this.skyRect = null;
     },
   },
   pageLifetimes: {
     show() {
+      this.pageHidden = false;
       this.onShow();
+      this.syncSkyPause();
     },
     hide() {
-      this.stopCardSky();
-      if (this.data.skyOn) this.setData({ skyOn: false });
+      this.pageHidden = true;
+      this.syncSkyPause();
     },
   },
   methods: {
@@ -334,7 +341,7 @@ Component({
   },
 
   holdTemp() {
-    this.setData({ skyPreview: true });
+    this.setData({ skyPreview: true }, () => this.scheduleSkyMeasure());
   },
 
   pickSky(event) {
@@ -398,7 +405,7 @@ Component({
       feelsLike: cached.feelsLike === 0 || cached.feelsLike ? String(cached.feelsLike) : "",
       windText: cached.windText || "",
       humidityText: cached.humidity === 0 || cached.humidity ? String(cached.humidity) : "",
-      hours: cached.hours || [],
+      hours: this.timeTonedHours(cached.hours, cached),
       hints: cached.hints || [],
       clothing: cached.clothing,
       weatherHint: "",
@@ -430,6 +437,55 @@ Component({
     if (Number(cached.temp) <= 8) return `${name}有点冷，把自己裹暖`;
     if (Number(cached.temp) >= 30) return `${name}有点热，记得多喝水`;
     return `${name}出门前看一眼衣服就好`;
+  },
+
+  /**
+   * 每小时配一个“天色”，图标才能按时段换：夜里月亮、日出日落时半落的太阳。
+   * 优先用云函数给的 item.hour；老数据没有钟点，就从“晚上七点”这样的标签倒推。
+   */
+  timeTonedHours(hours, weather) {
+    const list = hours || [];
+    const rise = this.sunClock(weather.sunrise);
+    const set = this.sunClock(weather.sunset);
+    const nowPhase = skyMoment(new Date(), weather.sunrise || "", weather.sunset || "").phase;
+    return list.map((item) => {
+      const hour = typeof item.hour === "number" ? item.hour : this.labelHour(item.label);
+      let tone = "";
+      if (hour === null) {
+        tone = nowPhase === "night" ? "night" : "";
+      } else if (rise !== null && set !== null && set > rise) {
+        if (hour + 1 <= rise || hour >= set + 1) tone = "night";
+        else if (hour < rise + 0.5) tone = "dawn";
+        else if (hour + 1 > set - 0.5) tone = "dusk";
+      } else if (hour < 5 || hour >= 19) {
+        tone = "night";
+      } else if (hour < 7) {
+        tone = "dawn";
+      } else if (hour >= 17) {
+        tone = "dusk";
+      }
+      return { ...item, tone };
+    });
+  },
+
+  /** “晚上七点” → 19，“现在” → 当前钟点，认不出来就是 null。 */
+  labelHour(label) {
+    const text = String(label || "");
+    if (text === "现在") return new Date().getHours();
+    if (text === "凌晨") return 0;
+    if (text === "中午") return 12;
+    const matched = text.match(/^(凌晨|上午|下午|晚上)([一两二三四五六七八九十]{1,2})点$/);
+    if (!matched) return null;
+    const index = ["一", "两", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"].indexOf(matched[2]);
+    if (index < 0) return null;
+    const hour = index + 1;
+    if (matched[1] === "凌晨" || matched[1] === "上午") return hour;
+    return hour === 12 ? 12 : hour + 12;
+  },
+
+  sunClock(text) {
+    const minute = clockMinutes(text);
+    return minute === null ? null : minute / 60;
   },
 
   saveWeather(info, source) {
@@ -580,58 +636,111 @@ Component({
     wx.navigateTo({ url: `/pages/soon/index?name=${encodeURIComponent(name)}` });
   },
 
-  /** 天气画在卡片顶部的画布里，文字在画布下面，滚动时跟着卡片走。 */
+  /** 天空铺满整张天气卡片，字浮在上面；容器滚动时整块一起走。 */
   syncCardSky() {
-    if (!this.data.active) {
-      this.stopCardSky();
-      if (this.data.skyOn) this.setData({ skyOn: false });
-      return;
-    }
     const real = this.currentWeather || {};
     const preview = this.previewSpec;
     const kind = preview ? preview.kind : (real.kind || "");
-    const windy = preview ? !!preview.windy : !!real.windy;
-    const heavy = preview ? !!preview.heavy : !!real.heavy || kind === "storm";
-    const night = preview ? !!preview.night : false;
     if (!kind) {
       this.stopCardSky();
       if (this.data.skyOn) this.setData({ skyOn: false });
       return;
     }
+    const windy = preview ? !!preview.windy : !!real.windy;
+    const heavy = preview ? !!preview.heavy : !!real.heavy || kind === "storm";
+    const night = preview ? !!preview.night : false;
     const moment = skyMoment(new Date(), real.sunrise || "", real.sunset || "");
     const moon = moonMoment(new Date(), real.moonrise || "", real.moonset || "");
+    const phase = night ? "night" : moment.phase;
     this.cardFocus = {
       kind,
       windy,
       heavy,
-      phase: night ? "night" : moment.phase,
+      phase,
       sunX: moment.sunX,
-      sunY: Math.min(0.42, moment.sunY + 0.08),
+      sunY: Math.min(0.34, Math.max(0.08, moment.sunY)),
       moonX: moon.x,
-      moonY: Math.min(0.46, moon.y + 0.08),
+      moonY: Math.min(0.34, Math.max(0.06, moon.y)),
       moonPhase: moonPhaseKey(real.moonPhase || "", new Date()),
     };
-    const start = () => this.initCardSky();
-    if (this.data.skyOn) start();
-    else this.setData({ skyOn: true }, start);
+    const colors = skyColors(kind, phase);
+    this.setData({
+      skyOn: true,
+      skyDark: phase === "night",
+      skyPhase: phase,
+      skyStyle: `--sky-a:${colors[0]};--sky-b:${colors[1]};--sky-c:${colors[2]};`,
+    }, () => this.scheduleSkyMeasure());
+  },
+
+  /** 卡片里的文字一变，高度就变，画布要跟着重新量。 */
+  scheduleSkyMeasure() {
+    this.initCardSky();
+    setTimeout(() => this.initCardSky(), 160);
+  },
+
+  /** 面板滑走、页面切后台时只暂停帧循环，画布留着，回来接着画。 */
+  syncSkyPause() {
+    if (this.skyIdle()) this.pauseCardSky();
+    else this.resumeCardSky();
+  },
+
+  skyIdle() {
+    return !this.data.active || !!this.pageHidden || this.data.skyBroken;
+  },
+
+  resumeCardSky() {
+    if (this.data.skyBroken) return;
+    if (!this.sky) {
+      this.syncCardSky();
+      return;
+    }
+    this.startCardSky();
+  },
+
+  startCardSky() {
+    const sky = this.sky;
+    if (!sky || sky.timer || this.skyIdle()) return;
+    sky.last = Date.now();
+    sky.timer = setTimeout(() => this.tickCardSky(), 33);
+  },
+
+  pauseCardSky() {
+    if (!this.sky) return;
+    if (this.sky.timer) clearTimeout(this.sky.timer);
+    this.sky.timer = null;
   },
 
   initCardSky(retry) {
     const focus = this.cardFocus;
-    if (!focus || !this.data.active) return;
+    if (!focus || this.data.skyBroken) return;
     const token = (this.skyToken || 0) + 1;
     this.skyToken = token;
     const query = this.createSelectorQuery();
-    query.select("#card-sky").fields({ node: true, size: true }).exec((res) => {
-      if (this.skyToken !== token || !this.data.active || !this.cardFocus) return;
+    query.select("#card-sky").fields({ node: true, size: true });
+    query.select(".weather-card").boundingClientRect();
+    query.exec((res) => {
+      if (this.skyToken !== token || !this.cardFocus) return;
       const found = res && res[0];
+      const rect = res && res[1];
       const tries = retry || 0;
       if (!found || !found.node || !found.width || !found.height) {
         if (tries < 8) setTimeout(() => this.initCardSky(tries + 1), 60);
         return;
       }
-      const signature = `${focus.kind}|${focus.windy ? 1 : 0}|${focus.heavy ? 1 : 0}`;
-      if (this.sky && this.sky.canvas === found.node && this.sky.sig === signature) return;
+      if (rect && rect.width) {
+        this.skyRect = {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          scroll: this.scrollTop || 0,
+        };
+      }
+      const signature = `${focus.kind}|${focus.windy ? 1 : 0}|${focus.heavy ? 1 : 0}|${Math.round(found.width)}x${Math.round(found.height)}`;
+      if (this.sky && this.sky.canvas === found.node && this.sky.sig === signature) {
+        this.startCardSky();
+        return;
+      }
       try {
         const info = wx.getWindowInfo ? wx.getWindowInfo() : { pixelRatio: 2 };
         const dpr = Math.min(info.pixelRatio || 2, 2);
@@ -641,7 +750,7 @@ Component({
         const ctx = canvas.getContext("2d");
         if (ctx.setTransform) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         else ctx.scale(dpr, dpr);
-        if (this.sky && this.sky.timer) clearTimeout(this.sky.timer);
+        this.pauseCardSky();
         const cast = createCast({
           kind: focus.kind,
           windy: focus.windy,
@@ -649,12 +758,6 @@ Component({
           width: found.width,
           height: found.height,
         });
-        cast.drops = cast.drops.slice(0, 48);
-        cast.flakes = cast.flakes.slice(0, 36);
-        cast.gusts = cast.gusts.slice(0, 7);
-        cast.leaves = cast.leaves.slice(0, 5);
-        cast.motes = cast.motes.slice(0, 16);
-        cast.stars = cast.stars.slice(0, 16);
         cast.sprite = makeFlakeSprite();
         this.sky = {
           canvas,
@@ -664,10 +767,11 @@ Component({
           last: Date.now(),
           timer: null,
           cast,
+          edges: frameEdges(found.width, found.height, focus.kind),
           width: found.width,
           height: found.height,
         };
-        this.tickCardSky();
+        this.startCardSky();
       } catch (error) {
         console.warn("天气卡片没有准备好", error);
       }
@@ -676,41 +780,41 @@ Component({
 
   stopCardSky() {
     this.skyToken = (this.skyToken || 0) + 1;
-    if (this.sky && this.sky.timer) clearTimeout(this.sky.timer);
+    this.pauseCardSky();
     this.sky = null;
+    this.cardFocus = null;
+    this.skyRect = null;
   },
 
-  cardGround() {
-    const sky = this.sky;
-    if (!sky) return [];
-    return [{
-      left: 4,
-      top: sky.height - 1,
-      width: Math.max(12, sky.width - 8),
-      height: 16,
-      shelf: true,
-      radius: 0,
-    }];
+  /** 同层渲染失败时，画布会盖住文字。宁可不画，退回底色天空。 */
+  onSkyRenderError() {
+    if (this.data.skyBroken) return;
+    this.stopCardSky();
+    this.setData({ skyBroken: true });
+    console.warn("天气卡片的画布没能叠在文字下面，改用底色天空");
   },
 
   tickCardSky() {
     const sky = this.sky;
     const focus = this.cardFocus;
-    if (!sky || !focus || !this.data.active) return;
+    if (!sky || !focus) return;
+    if (this.skyIdle()) {
+      sky.timer = null;
+      return;
+    }
     const now = Date.now();
     const dt = Math.min(0.05, Math.max(0, (now - sky.last) / 1000));
     sky.last = now;
-    const ground = this.cardGround();
     try {
-      stepCast(sky.cast, dt, ground);
-      paintCast(sky.ctx, sky.cast, focus.phase, {
-        x: focus.sunX,
-        y: focus.sunY,
-      }, ground, {
-        x: focus.moonX,
-        y: focus.moonY,
-        phase: focus.moonPhase,
-      });
+      stepCast(sky.cast, dt, sky.edges);
+      paintCast(
+        sky.ctx,
+        sky.cast,
+        focus.phase,
+        { x: focus.sunX, y: focus.sunY },
+        sky.edges,
+        { x: focus.moonX, y: focus.moonY, phase: focus.moonPhase }
+      );
     } catch (error) {
       if (!sky.warned) {
         sky.warned = true;
@@ -721,32 +825,73 @@ Component({
     sky.timer = setTimeout(() => this.tickCardSky(), 33);
   },
 
-  onStageStart(event) {
+  /** 上下快滚也算晃了一下卡片，风跟着变大。 */
+  onPageScroll(event) {
+    const top = (event.detail && event.detail.scrollTop) || 0;
+    const delta = top - (this.scrollTop || 0);
+    this.scrollTop = top;
+    if (!this.sky || Math.abs(delta) < 14 || this.skyIdle()) return;
+    const now = Date.now();
+    if (now - (this.scrollWindAt || 0) < 90) return;
+    this.scrollWindAt = now;
+    nudgeCast(this.sky.cast, 0, 0, Math.max(-90, Math.min(90, delta)));
+  },
+
+  onSkyTouchStart(event) {
     const touch = event.touches && event.touches[0];
-    if (!touch || !this.sky) return;
-    this.stageTouch = { x: touch.x, y: touch.y };
-    this.touchSky(touch.x, touch.y, 0);
+    if (!touch) return;
+    this.skyTouch = { x: touch.clientX, y: touch.clientY, moved: 0 };
   },
 
-  onStageMove(event) {
+  onSkyTouchMove(event) {
     const touch = event.touches && event.touches[0];
-    if (!touch || !this.stageTouch || !this.sky) return;
-    const dx = touch.x - this.stageTouch.x;
-    this.stageTouch = { x: touch.x, y: touch.y };
-    this.touchSky(touch.x, touch.y, dx);
+    const start = this.skyTouch;
+    if (!touch || !start) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    start.x = touch.clientX;
+    start.y = touch.clientY;
+    start.moved += Math.abs(dx) + Math.abs(dy);
+    if (!this.sky || this.skyIdle()) return;
+    if (Math.abs(dx) > 2) nudgeCast(this.sky.cast, 0, 0, dx);
+    this.brushSky(touch.clientX, touch.clientY);
   },
 
-  onStageEnd() {
-    this.stageTouch = null;
+  onSkyTouchEnd(event) {
+    const start = this.skyTouch;
+    this.skyTouch = null;
+    if (!start || !this.sky || this.skyIdle()) return;
+    const focus = this.cardFocus;
+    if (!focus) return;
+    const touch = event.changedTouches && event.changedTouches[0];
+    const x = touch ? touch.clientX : start.x;
+    const y = touch ? touch.clientY : start.y;
+    if (start.moved >= 10) {
+      this.brushSky(x, y);
+      return;
+    }
+    const local = this.skyLocal(x, y);
+    if (!local) return;
+    if (focus.kind === "fog") pokeFog(this.sky.cast, local.x, local.y);
+    if (focus.kind === "snow") brushSnow(this.sky.cast, local.x, this.sky.height - 4);
   },
 
-  touchSky(x, y, dx) {
+  /** 手指抹过下边框时，把那一小段雪擦掉。 */
+  brushSky(clientX, clientY) {
     const sky = this.sky;
     const focus = this.cardFocus;
-    if (!sky || !focus) return;
-    if (focus.kind === "fog") pokeFog(sky.cast, x, y);
-    if (focus.kind === "snow") brushSnow(sky.cast, x, y);
-    if (dx) nudgeCast(sky.cast, x, y, dx);
+    if (!sky || !focus || focus.kind !== "snow") return;
+    const local = this.skyLocal(clientX, clientY);
+    if (!local || local.y < sky.height - 100) return;
+    brushSnow(sky.cast, local.x, sky.height - 4);
+  },
+
+  /** 屏幕坐标换到画布坐标。滚动距离从 bindscroll 里补上。 */
+  skyLocal(clientX, clientY) {
+    const rect = this.skyRect;
+    if (!rect) return null;
+    const top = rect.top - ((this.scrollTop || 0) - (rect.scroll || 0));
+    return { x: clientX - rect.left, y: clientY - top };
   },
   },
 });
