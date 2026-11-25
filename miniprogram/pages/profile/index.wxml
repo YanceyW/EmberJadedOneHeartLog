@@ -26,7 +26,13 @@
       <view class="chip {{partnerTitle === item ? 'on' : ''}}" wx:for="{{roleOptions}}" wx:key="*this" data-title="{{item}}" bindtap="onRole">{{item}}</view>
     </view>
     <view class="label">经期提醒</view>
-    <view class="chip {{periodRemind ? 'on' : ''}}" bindtap="onPeriodRemind">{{periodRemind ? '已开启' : '不提醒'}}</view>
+    <remind-picker
+      value="{{periodRemind}}"
+      target-date="{{periodNext}}"
+      hint="{{periodNext ? '按最近一次经期推算下一次开始日' : '先记一次经期，才能推算日期'}}"
+      bind:change="onRemindChange"
+    />
+    <view class="muted">提醒会以服务通知发给你自己</view>
     <view class="label">出生日期（选填）</view>
     <picker mode="multiSelector" range="{{birthRange}}" value="{{birthIndex}}" bindcolumnchange="onBirthColumn" bindchange="onBirthPick">
       <view class="picker">{{birthText || '选填'}}</view>

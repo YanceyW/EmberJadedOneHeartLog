@@ -12,24 +12,6 @@
   padding: 16rpx 32rpx 0;
 }
 
-.card {
-  width: 100%;
-  box-sizing: border-box;
-  position: relative;
-  z-index: 1;
-  background: #fffaf8;
-  border-radius: 28rpx;
-  padding: 28rpx;
-  margin-bottom: 16rpx;
-  box-shadow: 0 8rpx 24rpx rgba(227, 154, 168, 0.1);
-}
-
-.person {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-
 .who {
   flex: 1;
   min-width: 0;
@@ -46,12 +28,6 @@
   font-size: 26rpx;
   color: #a08b84;
   line-height: 1.4;
-}
-
-.group {
-  margin: 12rpx 8rpx;
-  color: #a08b84;
-  font-size: 26rpx;
 }
 
 .mini-heart {
@@ -81,4 +57,262 @@
 .mini-heart::after {
   left: 14rpx;
   top: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx 8rpx 24rpx;
+}
+
+.avatar {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: #f8d5dc;
+  color: #8a3d48;
+  font-size: 44rpx;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.head .who {
+  flex: 1;
+  min-width: 0;
+}
+
+.head .name {
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.edit {
+  height: 56rpx;
+  line-height: 56rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: #f8d5dc;
+  color: #8a3d48;
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
+.seg-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 9;
+  padding: 8rpx 0 12rpx;
+  background: #fff7f4;
+}
+
+.seg {
+  display: flex;
+  gap: 8rpx;
+  padding: 8rpx;
+  background: #fffaf8;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 24rpx rgba(227, 154, 168, 0.1);
+}
+
+.seg-item {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  color: #a08b84;
+}
+
+.seg-item.on {
+  background: #e9899a;
+  color: #fff;
+}
+
+.seg-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  min-height: 320rpx;
+  margin: 16rpx 0;
+  padding: 24rpx;
+  box-sizing: border-box;
+  background: #fffaf8;
+  border-radius: 28rpx;
+  box-shadow: 0 8rpx 24rpx rgba(227, 154, 168, 0.1);
+  text-align: center;
+}
+
+.head-tools {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-shrink: 0;
+}
+
+.muted {
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.cap-wrap {
+  margin: 16rpx 0;
+}
+
+.cap-add {
+  background: #f8d5dc;
+  color: #8a3d48;
+  border-radius: 999rpx;
+  line-height: 76rpx;
+  text-align: center;
+  font-size: 28rpx;
+}
+
+.cap-item {
+  margin-top: 16rpx;
+  padding: 24rpx;
+  background: #fffaf8;
+  border-radius: 28rpx;
+  box-shadow: 0 8rpx 24rpx rgba(227, 154, 168, 0.1);
+}
+
+.cap-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.cap-title {
+  font-size: 32rpx;
+  color: #5c463f;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cap-state {
+  font-size: 24rpx;
+  color: #a08b84;
+  flex-shrink: 0;
+}
+
+.cap-state.due {
+  color: #e9899a;
+}
+
+.cap-sub {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #a08b84;
+}
+
+.cap-empty {
+  margin: 20rpx 8rpx;
+}
+
+.mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background: rgba(92, 70, 63, 0.35);
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 32rpx 32rpx 40rpx;
+  background: #fff7f4;
+  border-radius: 32rpx 32rpx 0 0;
+}
+
+.sheet-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #5c463f;
+  margin-bottom: 16rpx;
+}
+
+.cap-content {
+  background: #fffaf8;
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cap-input,
+.cap-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #fffaf8;
+  border-radius: 20rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+  color: #5c463f;
+  font-size: 28rpx;
+}
+
+.cap-textarea {
+  height: 240rpx;
+}
+
+.cap-label {
+  font-size: 26rpx;
+  color: #a08b84;
+  margin: 12rpx 0 8rpx;
+}
+
+.cap-picker {
+  background: #fffaf8;
+  border-radius: 20rpx;
+  padding: 20rpx;
+  color: #5c463f;
+}
+
+.cap-row {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
+}
+
+.cap-chip {
+  background: #f8d5dc;
+  color: #8a3d48;
+  border-radius: 999rpx;
+  padding: 8rpx 24rpx;
+  font-size: 26rpx;
+}
+
+.cap-chip.on {
+  background: #e9899a;
+  color: #fff;
+}
+
+.btn {
+  background: #e9899a;
+  color: #fff;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  line-height: 80rpx;
+  text-align: center;
+}
+
+.cap-save {
+  margin-top: 20rpx;
 }

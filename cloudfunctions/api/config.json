@@ -1,6 +1,13 @@
 {
   "permissions": {
-    "openapi": []
+    "openapi": ["subscribeMessage.send"]
   },
+  "triggers": [
+    {
+      "name": "remindTimer",
+      "type": "timer",
+      "config": "0 0 * * * * *"
+    }
+  ],
   "timeout": 20
 }

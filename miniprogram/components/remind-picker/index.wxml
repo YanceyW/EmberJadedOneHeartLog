@@ -1,0 +1,11 @@
+<view class="remind">
+  <view class="line">
+    <view class="name">提醒</view>
+    <view class="toggle {{enabled ? 'on' : ''}}" bindtap="toggle">{{enabled ? '开' : '不提醒'}}</view>
+  </view>
+  <view class="tip" wx:if="{{!ready}}">先选日期，再设提醒时间</view>
+  <picker wx:elif="{{enabled}}" mode="multiSelector" range="{{range}}" value="{{index}}" bindchange="onPick">
+    <view class="picked">{{text}}<text class="arrow">›</text></view>
+  </picker>
+  <view class="tip" wx:if="{{hint}}">{{hint}}</view>
+</view>

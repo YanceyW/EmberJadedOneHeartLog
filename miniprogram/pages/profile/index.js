@@ -1,5 +1,8 @@
 const app = getApp();
 const lunar = require("../../utils/lunar");
+const { addDays } = require("../../utils/date");
+const { normalizeRemind } = require("../../utils/remind");
+const subscribe = require("../../utils/subscribe");
 
 const SHI = [
   { name: "子时", hours: [23, 0] },
@@ -20,13 +23,6 @@ function pad(number) {
   return String(number).padStart(2, "0");
 }
 
-function shiIndexFromHour(hour) {
-  if (hour === 23 || hour === 0) {
-    return 0;
-  }
-  return Math.floor((hour + 1) / 2);
-}
-
 function shiLabel(item) {
   if (item.name === "子时") {
     return "子时 23:00-01:00";
@@ -41,15 +37,7 @@ function timeOptions() {
 
 function timeIndexFromText(text) {
   const value = String(text || "");
-  const byName = SHI.findIndex((item) => value.indexOf(item.name) === 0);
-  if (byName >= 0) {
-    return byName;
-  }
-  const clock = /^(\d{2}):(\d{2})$/.exec(value);
-  if (clock) {
-    return shiIndexFromHour(Number(clock[1]));
-  }
-  return -1;
+  return SHI.findIndex((item) => value.indexOf(item.name) === 0);
 }
 
 Page({
@@ -76,7 +64,8 @@ Page({
     hasPartner: false,
     partnerTitle: "",
     roleOptions: ["男友", "未婚夫", "丈夫", "女友", "未婚妻", "妻子"],
-    periodRemind: false,
+    periodRemind: normalizeRemind({ enabled: false, leadDays: 2 }),
+    periodNext: "",
     mutual: false,
   },
 
@@ -85,6 +74,7 @@ Page({
   },
 
   async load() {
+    subscribe.preload();
     const result = await app.loadSession(true);
     if (!result.ok) {
       wx.showToast({ title: result.message, icon: "none" });
@@ -92,6 +82,7 @@ Page({
     }
     const user = result.user;
     const partner = result.partner;
+    this.periods = result.periods || [];
     let partnerText = "选择对象";
     if (partner && result.mutual) {
       partnerText = `已和 ${partner.nickName || "未命名"} 互为对象`;
@@ -117,10 +108,20 @@ Page({
       hasPartner: !!partner,
       partnerTitle: roleOptions.indexOf(user.partnerTitle) >= 0 ? user.partnerTitle : "",
       roleOptions,
-      periodRemind: user.periodRemind === true && !(user.gender === "male" && !result.mutual),
+      periodRemind: normalizeRemind(user.periodRemind),
+      periodNext: this.nextPeriodDate(result.periods, user.cycleLength),
       mutual: !!result.mutual,
       ...this.birthFields(user),
     });
+  },
+
+  /** 最近一次开始日 + 周期，推算下一次。没有记录就留空，picker 会提示先记一次。 */
+  nextPeriodDate(periods, cycleLength) {
+    const starts = (periods || []).map((item) => item.startDate).filter(Boolean).sort();
+    if (!starts.length) {
+      return "";
+    }
+    return addDays(starts[starts.length - 1], Number(cycleLength) || 28);
   },
 
   birthFields(user) {
@@ -154,7 +155,8 @@ Page({
   },
 
   onCycle(event) {
-    this.setData({ cycleLength: event.detail.value });
+    const cycleLength = event.detail.value;
+    this.setData({ cycleLength, periodNext: this.nextPeriodDate(this.periods, cycleLength) });
   },
 
   onPeriod(event) {
@@ -205,12 +207,15 @@ Page({
     this.setData({ partnerTitle: event.currentTarget.dataset.title });
   },
 
-  onPeriodRemind() {
-    if (!this.data.periodRemind && this.data.gender === "male" && !this.data.mutual) {
+  onRemindChange(event) {
+    if (event.detail.enabled && this.data.gender === "male" && !this.data.mutual) {
       wx.showToast({ title: "你还没有对象", icon: "none" });
       return;
     }
-    this.setData({ periodRemind: !this.data.periodRemind });
+    this.setData({ periodRemind: event.detail });
+    if (!this.data.periodNext && event.detail.enabled) {
+      wx.showToast({ title: "先记一次经期才能推算日期", icon: "none" });
+    }
   },
 
   onRegion(event) {
@@ -219,6 +224,7 @@ Page({
   },
 
   async saveProfile() {
+    const asked = this.data.showOwnCycle || this.data.showPartnerCycle ? subscribe.request(["period"]) : null;
     const result = await app.call("saveProfile", {
       nickName: this.data.nickName,
       gender: this.data.gender,
@@ -246,6 +252,9 @@ Page({
         return;
       }
       app.globalData.session = partnerResult;
+    }
+    if (asked) {
+      await asked;
     }
     wx.showToast({ title: "已保存" });
     this.load();

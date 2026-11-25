@@ -1,5 +1,12 @@
 <scroll-view class="page" scroll-y enhanced show-scrollbar="{{false}}">
   <view class="records-head">
+  <view class="head-line">
+    <view class="head-title">记录</view>
+    <view class="head-tools">
+      <view class="head-tool" bindtap="toggleManage">{{managing ? '取消' : '管理'}}</view>
+      <view class="head-tool add" wx:if="{{!managing}}" bindtap="openAdd">+</view>
+    </view>
+  </view>
   <view class="row">
     <view class="chip {{shown[item.key] ? 'on' : ''}}" wx:for="{{types}}" wx:key="key" data-key="{{item.key}}" bindtap="toggleType">{{item.name}}</view>
   </view>
@@ -8,22 +15,58 @@
     <view class="chip {{sortMode === 'type' ? 'on' : ''}}" data-mode="type" bindtap="setSort">按类型</view>
   </view>
   </view>
+  <view class="decision-block" wx:if="{{decisions.length}}">
+    <view class="section-cap">一起决定</view>
+    <view class="card decision" wx:for="{{decisions}}" wx:for-item="dec" wx:key="id">
+      <view class="dec-head">
+        <view class="dec-title">{{dec.title}}</view>
+        <view class="dec-tag">{{dec.categoryName}}</view>
+      </view>
+      <view class="dec-opt {{opt.win ? 'win' : ''}} {{opt.mine ? 'mine' : ''}}" wx:for="{{dec.options}}" wx:for-item="opt" wx:key="id" data-id="{{dec.id}}" data-opt="{{opt.id}}" bindtap="voteOption">
+        <text class="dec-opt-text">{{opt.win ? '★ ' : ''}}{{opt.text}}</text>
+        <text class="dec-count">{{opt.count}}</text>
+      </view>
+      <view class="dec-result" wx:if="{{dec.result}}">结果：{{dec.result.text}}</view>
+      <view class="dec-actions">
+        <block wx:if="{{!dec.result}}">
+          <view class="dec-btn" data-id="{{dec.id}}" data-mode="vote" bindtap="finishDecision">按票数</view>
+          <view class="dec-btn" data-id="{{dec.id}}" data-mode="random" bindtap="finishDecision">随机</view>
+        </block>
+        <view class="dec-btn ghost" wx:if="{{dec.own}}" data-id="{{dec.id}}" bindtap="deleteDecision">删除</view>
+      </view>
+    </view>
+  </view>
   <block wx:for="{{rows}}" wx:key="key">
     <view class="group-title" wx:if="{{item.showHead}}">{{item.head}}</view>
-    <view class="card item" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openRow">
+    <view class="card item {{managing && picked[item.key] ? 'picked' : ''}}" data-id="{{item.id}}" data-kind="{{item.kind}}" bindtap="openRow">
+      <view class="pick-dot" wx:if="{{managing}}">{{picked[item.key] ? '✓' : ''}}</view>
       <view class="kind" wx:if="{{sortMode !== 'type'}}">{{item.kindName}}</view>
       <view class="name">{{item.title}}</view>
       <view class="muted">{{item.label}}</view>
     </view>
   </block>
   <view class="muted empty" wx:if="{{!rows.length}}">这里还没有记录</view>
+  <view class="empty" wx:if="{{!rows.length && !managing}}"><view class="empty-add" bindtap="openAdd">去添加一条</view></view>
   <view style="height: {{tabClearance}}px;"></view>
+
+  <view class="add-mask" wx:if="{{addOpen}}" bindtap="closeAdd"></view>
+  <view class="add-pop" wx:if="{{addOpen}}" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
+    <view class="add-title">添加到记录</view>
+    <scroll-view class="add-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="add-item" wx:for="{{addTypes}}" wx:key="key" data-kind="{{item.key}}" bindtap="pickAdd">{{item.name}}</view>
+    </scroll-view>
+  </view>
+
+  <view class="manage-bar" wx:if="{{managing}}" style="bottom: {{tabClearance}}px;">
+    <view class="muted">已选 {{pickedCount}} 条</view>
+    <view class="manage-del" bindtap="confirmBatchDelete">删除</view>
+  </view>
 
   <view class="mask" wx:if="{{sheet}}" bindtap="closeSheet">
     <view class="sheet" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
       <view class="detail-head">
-        <view class="section-title">{{sheet === 'birthday' ? '生日' : sheet === 'anniversary' ? '纪念日' : sheet === 'period' ? '经期' : '日程'}}</view>
-        <view class="tool danger" bindtap="askDelete">删</view>
+        <view class="section-title">{{sheet === 'birthday' ? '生日' : sheet === 'anniversary' ? '纪念日' : sheet === 'period' ? '经期' : sheet === 'wish' ? '心愿' : sheet === 'decision' ? '一起决定' : '日程'}}</view>
+        <view class="tool danger" wx:if="{{form.id && sheet !== 'decision'}}" bindtap="askDelete">删</view>
       </view>
       <block wx:if="{{sheet === 'period'}}">
         <view class="label">开始日</view>
@@ -51,6 +94,12 @@
         <picker wx:else mode="multiSelector" range="{{form.birthRange}}" value="{{form.birthIndex}}" bindcolumnchange="onBirthdayColumn" bindchange="onBirthdayLunar">
           <view class="picker">{{form.dateText || '选择农历生日'}}</view>
         </picker>
+        <remind-picker
+          value="{{form.remind}}"
+          target-date="{{form.remindDate}}"
+          hint="{{form.calendar === 'lunar' ? '农历生日暂不支持提醒' : ''}}"
+          bind:change="onRemind"
+        />
         <view class="btn" bindtap="saveBirthday">保存生日</view>
       </block>
       <block wx:if="{{sheet === 'anniversary'}}">
@@ -63,6 +112,7 @@
           <view class="chip {{form.yearly !== false ? 'on' : ''}}" data-key="yearly" data-value="{{true}}" bindtap="setForm">每年重复</view>
           <view class="chip {{form.yearly === false ? 'on' : ''}}" data-key="yearly" data-value="{{false}}" bindtap="setForm">仅一次</view>
         </view>
+        <remind-picker value="{{form.remind}}" target-date="{{form.remindDate}}" bind:change="onRemind" />
         <view class="btn" bindtap="saveAnniversary">保存纪念日</view>
       </block>
       <block wx:if="{{sheet === 'schedule'}}">
@@ -72,7 +122,27 @@
           <picker mode="date" value="{{form.date}}" data-key="date" bindchange="onForm"><view class="cal"></view></picker>
         </view>
         <input class="field" data-key="note" value="{{form.note}}" placeholder="一句备注" bindinput="onForm" />
+        <remind-picker value="{{form.remind}}" target-date="{{form.remindDate}}" hint="到点会给双方发一条服务通知" bind:change="onRemind" />
         <view class="btn" bindtap="saveSchedule">保存日程</view>
+      </block>
+      <block wx:if="{{sheet === 'wish'}}">
+        <input class="field" data-key="title" value="{{form.title}}" placeholder="想要什么" bindinput="onForm" />
+        <view class="label">想在哪天实现（可不填）</view>
+        <view class="date-line">
+          <input class="field" data-key="targetDate" value="{{form.targetDate}}" placeholder="2026-12-31" bindblur="onForm" />
+          <picker mode="date" value="{{form.targetDate || defaultDate}}" data-key="targetDate" bindchange="onForm"><view class="cal"></view></picker>
+        </view>
+        <view class="btn" bindtap="saveWish">保存心愿</view>
+      </block>
+      <block wx:if="{{sheet === 'decision'}}">
+        <input class="field" data-key="title" value="{{df.title}}" placeholder="一起决定什么，比如周末吃什么" bindinput="onDecisionTitle" />
+        <view class="label">选项（2 到 6 个）</view>
+        <view class="opt-line" wx:for="{{df.options}}" wx:key="index">
+          <input class="field" data-index="{{index}}" value="{{item}}" placeholder="选项 {{index + 1}}" bindinput="onDecisionOption" />
+          <view class="opt-del" wx:if="{{df.options.length > 2}}" data-index="{{index}}" bindtap="removeDecisionOption">−</view>
+        </view>
+        <view class="add-opt" wx:if="{{df.options.length < 6}}" bindtap="addDecisionOption">+ 再加一个</view>
+        <view class="btn" bindtap="saveDecision">保存决定</view>
       </block>
     </view>
   </view>

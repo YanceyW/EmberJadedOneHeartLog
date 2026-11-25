@@ -1,10 +1,29 @@
 <view class="page">
+  <view class="group-title">权限</view>
   <view class="card item" wx:for="{{items}}" wx:key="scope" data-scope="{{item.scope}}" bindtap="onItem">
-    <view>
-      <view>位置权限</view>
+    <view class="grow">
+      <view>{{item.name}}</view>
       <view class="muted">{{item.desc}}</view>
     </view>
     <view class="status {{item.granted ? 'on' : ''}}">{{item.status}}</view>
   </view>
   <view class="muted note">进入小程序时会询问正在使用的权限。拒绝之后，微信不会再自动弹出，请在这里重新打开。</view>
+
+  <view class="group-title">订阅推送</view>
+  <view class="card item" bindtap="openNotify">
+    <view class="grow">
+      <view>提醒设置</view>
+      <view class="muted">{{notifySummary}}</view>
+    </view>
+    <view class="go">›</view>
+  </view>
+  <view class="muted note">日程、留言、经期、生日、纪念日、决定结果、胶囊到期各自单独开关。想让对方收到哪一项，就要对方自己进去攒额度。</view>
+
+  <view class="group-title">数据安全</view>
+  <view class="card item" bindtap="askClearData">
+    <view class="grow">
+      <view class="danger-title">清空我的数据</view>
+      <view class="muted">删掉自己创建的记录、心愿、决定、胶囊、留言和聊天；对象关系和资料保留，删了不能恢复</view>
+    </view>
+  </view>
 </view>

@@ -1,0 +1,129 @@
+<view class="page">
+  <view class="card">
+    <view class="section-head">
+      <view class="section-title">谁能看</view>
+    </view>
+    <view class="seg">
+      <view class="seg-item {{visibility === 'both' ? 'on' : ''}}" data-value="both" bindtap="pickVisibility">双方可见</view>
+      <view class="seg-item {{visibility === 'self' ? 'on' : ''}}" data-value="self" bindtap="pickVisibility">仅自己</view>
+    </view>
+    <view class="muted">{{visibility === 'both' ? 'TA 能看到这份课表，也能一起改。' : 'TA 看不到这份课表，也改不了；你自己照常用。'}}</view>
+  </view>
+  <view class="card guide">
+    <view class="section-title">怎么录</view>
+    <view class="guide-step"><text class="guide-num">1</text>先在下面「节次」里把每天的节次和时间排对，不够点「加一节」。</view>
+    <view class="guide-step"><text class="guide-num">2</text>周六日的作息和工作日不一样，切到「周六周日」单独排一套；不排的话课表上就不显示周六日。</view>
+    <view class="guide-step"><text class="guide-num">3</text>点底部「保存」，回到课表页点某一天的格子填科目或班级。</view>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view class="section-title">回家周</view>
+      <switch checked="{{homeCycle.enabled}}" color="#e9899a" bindchange="toggleHome" />
+    </view>
+    <view class="muted">打开后课表页会显示这周上课还是回家；关掉就只显示课表。</view>
+    <block wx:if="{{homeCycle.enabled}}">
+      <view class="row">
+        <view class="row-label">多久一次</view>
+        <picker range="{{everyOptions}}" value="{{everyIndex}}" bindchange="onEvery">
+          <view class="picker-val">{{everyOptions[everyIndex]}}</view>
+        </picker>
+      </view>
+      <view class="row">
+        <view class="row-label">哪一周回家</view>
+        <picker range="{{homeOptions}}" value="{{homePickIndex}}" bindchange="onHomePick">
+          <view class="picker-val">{{homeOptions[homePickIndex]}}</view>
+        </picker>
+      </view>
+      <view class="row">
+        <view class="row-label">从这周开始算</view>
+        <picker mode="date" value="{{homeCycle.anchor}}" bindchange="onAnchor">
+          <view class="picker-val">{{homeCycle.anchor}}</view>
+        </picker>
+      </view>
+      <view class="row">
+        <view class="row-label muted">{{overrideText}}</view>
+        <view class="link" bindtap="clearOverrides">清空</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view class="section-title">分组</view>
+      <view class="muted">{{groups.length}} / 8</view>
+    </view>
+    <view class="muted">课表上按这个顺序分段显示。上午、下午总会显示，其它分组整周没课就自动收起。点名字可以改。</view>
+    <view class="group-list">
+      <view class="group-line" wx:for="{{groups}}" wx:key="key">
+        <view class="group-name" data-key="{{item.key}}" bindtap="renameGroup">{{item.name}}</view>
+        <view class="group-del" data-key="{{item.key}}" bindtap="removeGroup">✕</view>
+      </view>
+    </view>
+    <view class="group-add" wx:if="{{canAddGroup}}" bindtap="addGroup">＋ 加一个分组</view>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view class="section-title">节次</view>
+      <view class="muted" wx:if="{{tab === 'weekday' || weekendSplit}}">{{periods.length}} / {{maxPeriods}}</view>
+    </view>
+
+    <view class="seg">
+      <view class="seg-item {{tab === 'weekday' ? 'on' : ''}}" data-tab="weekday" bindtap="switchTab">周一到周五 {{weekdayCount}}</view>
+      <view class="seg-item {{tab === 'weekend' ? 'on' : ''}}" data-tab="weekend" bindtap="switchTab">周六周日 {{weekendCount}}</view>
+    </view>
+
+    <view class="row split-row" wx:if="{{tab === 'weekend'}}">
+      <view class="grow">
+        <view>周末单独排</view>
+        <view class="muted">关掉就和工作日共用一套节次</view>
+      </view>
+      <switch checked="{{weekendSplit}}" color="#e9899a" bindchange="toggleWeekendSplit" />
+    </view>
+
+    <block wx:if="{{tab === 'weekday' || weekendSplit}}">
+      <view class="muted">这一套只管{{tab === 'weekend' ? '周六日' : '周一到周五'}}。时间可以直接打字（6:40 或 0640 都行），也可以点 ▾ 滚。某一节没课就空着，课表里不会显示。</view>
+
+      <view class="period" wx:for="{{periods}}" wx:key="id">
+        <view class="period-main">
+          <input class="period-name" value="{{item.name}}" data-index="{{index}}" bindinput="onName" maxlength="10" />
+          <view class="period-times">
+            <view class="time-field">
+              <input class="time-input" type="text" maxlength="5" value="{{item.start}}" data-index="{{index}}" data-key="start" bindfocus="onTimeFocus" bindinput="onTimeInput" bindblur="onTimeBlur" />
+              <picker class="time-picker" mode="time" value="{{item.start}}" data-index="{{index}}" data-key="start" bindchange="onTime">
+                <view class="time-caret">▾</view>
+              </picker>
+            </view>
+            <text class="dash">–</text>
+            <view class="time-field">
+              <input class="time-input" type="text" maxlength="5" value="{{item.end}}" data-index="{{index}}" data-key="end" bindfocus="onTimeFocus" bindinput="onTimeInput" bindblur="onTimeBlur" />
+              <picker class="time-picker" mode="time" value="{{item.end}}" data-index="{{index}}" data-key="end" bindchange="onTime">
+                <view class="time-caret">▾</view>
+              </picker>
+            </view>
+            <view class="group-chip" data-index="{{index}}" bindtap="cycleGroup">{{item.groupName}}</view>
+          </view>
+        </view>
+        <view class="period-tools">
+          <view class="tool {{item.first ? 'off' : ''}}" data-index="{{index}}" data-delta="-1" bindtap="movePeriod">↑</view>
+          <view class="tool {{item.last ? 'off' : ''}}" data-index="{{index}}" data-delta="1" bindtap="movePeriod">↓</view>
+          <view class="tool danger" data-index="{{index}}" bindtap="removePeriod">✕</view>
+        </view>
+      </view>
+
+      <view class="period-actions">
+        <view class="btn plain" bindtap="addPeriod">加一节</view>
+        <view class="btn plain" bindtap="resetPeriods">用默认节次</view>
+      </view>
+    </block>
+
+    <view class="muted keep" wx:else>现在周六日和工作日一样，课表里周末那两天会按周一到周五的节次排。</view>
+  </view>
+
+  <view class="muted foot">点分组那两个字可以切早自习 / 上午 / 下午 / 晚自习，课表里就按这个分组显示。周末的节次和时间如果和平时不一样，在「周六周日」里单独排。</view>
+
+  <view class="save-bar">
+    <view class="btn" bindtap="save">{{saving ? '保存中' : '保存'}}</view>
+  </view>
+</view>

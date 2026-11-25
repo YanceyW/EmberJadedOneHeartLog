@@ -1,6 +1,8 @@
 const app = getApp();
 const { buildMarks } = require("../../utils/cycle");
-const { addDays, anniversaryOn, anniversaryIndex, chineseDate, diffDays, displayDate, pad, todayString } = require("../../utils/date");
+const { addDays, anniversaryOn, anniversaryIndex, chineseDate, diffDays, displayDate, nextOccurrence, pad, todayString } = require("../../utils/date");
+const { defaultRemind, normalizeRemind } = require("../../utils/remind");
+const subscribe = require("../../utils/subscribe");
 const { getTabClearance, watchTabClearance } = require("../../utils/layout");
 
 function readChineseDate(text) {
@@ -14,6 +16,7 @@ const { loadFilter, saveFilter } = require("../../utils/filter");
 const { markDay, birthText, birthFrom, buildBirth, indexFromBirth, ganZhiPillars } = require("../../utils/lunar");
 const { dayAlmanac } = require("../../utils/almanac");
 const { birthdayPhrase, occursOn } = require("../../utils/birthday");
+const festivals = require("../../utils/festivals");
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 
@@ -22,12 +25,9 @@ Component({
     week: WEEK,
     title: "",
     cells: [],
-    expanded: false,
-    offsetY: 0,
     sheetY: 640,
     sheetUp: false,
     sheetDrag: false,
-    dragging: false,
     monthAnim: "",
     upcoming: [],
     filter: { period: true, fertile: true, anniversary: true, birthday: true, schedule: true },
@@ -43,6 +43,7 @@ Component({
     popShift: 0,
     dayItems: [],
     dayLunar: "",
+    focusHoliday: "",
     dayYi: "",
     dayJi: "",
     selectedDate: "",
@@ -51,11 +52,8 @@ Component({
     hint: "",
     todayYi: "",
     todayJi: "",
-    almanacHint: "正在整理今天",
-    almanacNote: "",
-    almanacOpen: false,
-    almanacHeight: 320,
-    almanacShift: 0,
+    almanacHint: "点一天看黄历",
+    holidaysStale: "",
     tabClearance: 120,
   },
   properties: {
@@ -77,11 +75,17 @@ Component({
       this.unwatchClearance = watchTabClearance((value) => {
         this.setData({ tabClearance: value });
       });
+      this.festivalWatcher = () => this.onFestivalsChange();
+      festivals.onChange(this.festivalWatcher);
     },
     detached() {
       if (this.unwatchClearance) {
         this.unwatchClearance();
         this.unwatchClearance = null;
+      }
+      if (this.festivalWatcher) {
+        festivals.offChange(this.festivalWatcher);
+        this.festivalWatcher = null;
       }
     },
   },
@@ -102,6 +106,8 @@ Component({
   },
 
   async reload() {
+    subscribe.preload();
+    festivals.init();
     const result = await app.loadSession(true);
     if (!result.ok) {
       wx.showToast({ title: result.message, icon: "none" });
@@ -114,6 +120,43 @@ Component({
       canEditPeriod: result.canEditPeriod,
       hint: result.user.gender ? "" : "请先在「编辑资料」里选择性别，才能记录经期",
     });
+    this.render();
+    this.loadToday();
+    this.loadHolidays();
+  },
+
+  /** 云端的节假日只是补充，拿不到就继续用内置的，不打扰用户。 */
+  async loadHolidays() {
+    const changed = await festivals.refresh();
+    if (changed) {
+      this.render();
+      this.loadToday();
+    }
+    this.setData({ holidaysStale: this.holidayGap() });
+  },
+
+  /** 当前看的年份没有放假安排时给个提示，免得以为功能坏了。 */
+  holidayGap() {
+    const year = this.year;
+    if (!year || festivals.hasSchedule(year)) {
+      return "";
+    }
+    const last = festivals.lastSyncText();
+    return `这一年（${year}）还没有节假日数据${last ? ` · 上次更新 ${last}` : ""}`;
+  },
+
+  retryHolidays() {
+    wx.showLoading({ title: "更新中" });
+    festivals.refresh(true).then(() => {
+      wx.hideLoading();
+      this.setData({ holidaysStale: this.holidayGap() });
+      this.render();
+      this.loadToday();
+    });
+  },
+
+  onFestivalsChange() {
+    this.setData({ holidaysStale: this.holidayGap() });
     this.render();
     this.loadToday();
   },
@@ -134,12 +177,29 @@ Component({
       selectedDate: date,
       focusLunar: lunarTitle,
       focusWeek: week ? `星期${week}` : "",
+      focusHoliday: this.holidayLine(date),
       dayItems: this.itemsOn(date),
       pillars,
       todayYi: almanac ? almanac.yi : "",
       todayJi: almanac ? almanac.ji : "",
       almanacHint: almanac ? "" : "这一年不显示黄历",
     });
+  },
+
+  /** 「国庆节 · 10月1日至7日放假，9月20日、10月10日上班」 */
+  holidayLine(date) {
+    const span = festivals.spanOf(date);
+    if (!span) {
+      return "";
+    }
+    if (span.crossYear) {
+      // 跨年的假期不硬拼区间，只报名字。
+      return span.name;
+    }
+    const workdays = festivals.workdaysOf(span.name, span.from.slice(0, 4)).map((date) => displayDate(date));
+    const range = span.from === span.to ? "" : ` · ${displayDate(span.from)}至${Number(span.to.slice(8))}日放假`;
+    const extra = workdays.length ? `，${workdays.join("、")}上班` : "";
+    return `${span.name}${range}${extra}`;
   },
 
   ownerProfile() {
@@ -210,6 +270,7 @@ Component({
       const date = `${this.year}-${pad(this.month)}-${pad(day)}`;
       const icons = this.iconsFor(date, marks);
       const marked = markDay(this.year, this.month, day);
+      const holiday = festivals.holidayOf(date);
       cells.push({
         key: date,
         empty: false,
@@ -218,6 +279,9 @@ Component({
         today: date === todayString(),
         lunar: marked.lunar,
         lunarFull: marked.lunarFull,
+        rest: !!holiday && holiday.type === "holiday",
+        work: !!holiday && holiday.type === "workday",
+        festival: holiday ? holiday.name : "",
         icons: icons.slice(0, 3),
         more: Math.max(0, icons.length - 3),
       });
@@ -269,6 +333,10 @@ Component({
         items.push({ id: item._id, kind: "schedule", date: item.date, title: item.title });
       }
     });
+    festivals.nextOffDays(today, end).forEach((item) => {
+      const title = item.type === "workday" ? `${item.name}调休上班` : item.ongoing ? `${item.name}（到 ${displayDate(item.to)}）` : `${item.name}放假`;
+      items.push({ id: `holiday-${item.date}`, kind: "holiday", date: item.date, title });
+    });
     items.sort((left, right) => (left.date < right.date ? -1 : 1));
     return items.map((item) => ({
       ...item,
@@ -309,42 +377,6 @@ Component({
     this.touchX = event.touches[0].clientX;
     this.touchY = event.touches[0].clientY;
     this.gesture = true;
-  },
-
-  onTouchMove(event) {
-    if (!this.gesture) {
-      return;
-    }
-    const dy = event.touches[0].clientY - this.touchY;
-    const dx = event.touches[0].clientX - this.touchX;
-    if (Math.abs(dy) < 12 || Math.abs(dy) <= Math.abs(dx)) {
-      return;
-    }
-    const base = this.data.expanded ? -(this.monthHeight || 0) : 0;
-    let offsetY = base + dy;
-    const limit = -(this.monthHeight || 0);
-    if (offsetY > 0) offsetY = 0;
-    if (offsetY < limit) offsetY = limit;
-    this.setData({ offsetY, dragging: true });
-  },
-
-  onTouchEnd(event) {
-    if (!this.gesture) {
-      return;
-    }
-    this.gesture = false;
-    const dy = event.changedTouches[0].clientY - this.touchY;
-    if (!this.data.dragging && Math.abs(dy) < 12) {
-      return;
-    }
-    let expanded = this.data.expanded;
-    if (!expanded && dy < -80) expanded = true;
-    if (expanded && dy > 80) expanded = false;
-    this.setData({
-      expanded,
-      offsetY: expanded ? -(this.monthHeight || 0) : 0,
-      dragging: false,
-    });
   },
 
   measureMonth() {
@@ -650,10 +682,12 @@ Component({
         dateText: calendar === "lunar" ? birthText("lunar", code) : chineseDate(year, month, day),
         anniversaryDate: `${year}-${pad(month)}-${pad(day)}`,
         visibility: found ? found.visibility : "both",
+        remind: found ? normalizeRemind(found.remind) : defaultRemind(0),
         birthRange: built.range,
         birthIndex: built.index,
       },
     });
+    this.syncRemindDate();
   },
 
   onBirthdayColumn(event) {
@@ -680,6 +714,7 @@ Component({
       "form.dateText": birthText("lunar", picked.date),
       "form.birthIndex": picked.index,
     });
+    this.syncRemindDate();
   },
 
   startAnniversary(event) {
@@ -701,16 +736,51 @@ Component({
         anniversaryDate: `${year}-${pad(month)}-${pad(day)}`,
         yearly: found ? found.yearly !== false : true,
         visibility: found ? found.visibility : "both",
+        remind: found ? normalizeRemind(found.remind) : defaultRemind(0),
       },
     });
+    this.syncRemindDate();
   },
 
   startSchedule(event) {
     const found = (this.session.schedules || []).find((item) => item._id === event.currentTarget.dataset.id);
-    this.setData({
-      sheet: "schedule",
-      form: found ? { ...found, id: found._id } : { title: "", note: "", date: this.data.selectedDate, visibility: "both", remind: "dayBefore" },
-    });
+    const form = found
+      ? { ...found, id: found._id, remind: normalizeRemind(found.remind) }
+      : { title: "", note: "", date: this.data.selectedDate, visibility: "both", remind: defaultRemind(1) };
+    this.setData({ sheet: "schedule", form });
+    this.syncRemindDate();
+  },
+
+  /** picker 的日期列要按目标日排，日期一改就得重算。 */
+  remindDateFor(sheet, form) {
+    const today = todayString();
+    if (sheet === "schedule") {
+      return /^\d{4}-\d{2}-\d{2}$/.test(form.date || "") ? form.date : "";
+    }
+    if (sheet === "birthday") {
+      if (form.calendar === "lunar" || !form.month || !form.day) {
+        return "";
+      }
+      return nextOccurrence(form.month, form.day, today);
+    }
+    if (sheet === "anniversary") {
+      if (!form.month || !form.day) {
+        return "";
+      }
+      if (form.yearly === false) {
+        return anniversaryOn(form.year || Number(today.slice(0, 4)), form.month, form.day);
+      }
+      return nextOccurrence(form.month, form.day, today);
+    }
+    return "";
+  },
+
+  syncRemindDate() {
+    this.setData({ "form.remindDate": this.remindDateFor(this.data.sheet, this.data.form || {}) });
+  },
+
+  onRemind(event) {
+    this.setData({ "form.remind": event.detail });
   },
 
   onAnniversaryDate(event) {
@@ -725,6 +795,7 @@ Component({
       "form.anniversaryDate": value,
       "form.dateText": chineseDate(year, month, day),
     });
+    this.syncRemindDate();
   },
 
   onAnniversaryText(event) {
@@ -740,12 +811,16 @@ Component({
       "form.anniversaryDate": `${parsed.year}-${pad(parsed.month)}-${pad(parsed.day)}`,
       "form.dateText": chineseDate(parsed.year, parsed.month, parsed.day),
     });
+    this.syncRemindDate();
   },
 
   onForm(event) {
     const key = event.currentTarget.dataset.key;
     const value = event.detail.value;
     this.setData({ [`form.${key}`]: value });
+    if (key === "date") {
+      this.syncRemindDate();
+    }
   },
 
   setForm(event) {
@@ -754,6 +829,9 @@ Component({
     if (value === "true") value = true;
     if (value === "false") value = false;
     this.setData({ [`form.${key}`]: value });
+    if (key === "yearly" || key === "calendar") {
+      this.syncRemindDate();
+    }
   },
 
   noop() {},
@@ -776,35 +854,25 @@ Component({
     this.afterSave(result);
   },
 
-  async removePeriod(event) {
-    const result = await app.call("deletePeriod", { id: event.currentTarget.dataset.id });
-    this.afterSave(result);
-  },
-
   async saveBirthday() {
+    const asked = subscribe.request(["birthday"]);
     const result = await app.call("saveBirthday", this.data.form);
     this.afterSave(result);
+    await asked;
   },
 
   async saveAnniversary() {
-    const form = this.data.form;
-    const result = await app.call("saveAnniversary", form);
+    const asked = subscribe.request(["anniversary"]);
+    const result = await app.call("saveAnniversary", this.data.form);
     this.afterSave(result);
-  },
-
-  async removeAnniversary(event) {
-    const result = await app.call("deleteAnniversary", { id: event.currentTarget.dataset.id });
-    this.afterSave(result);
+    await asked;
   },
 
   async saveSchedule() {
+    const asked = subscribe.request(["schedule", "note"]);
     const result = await app.call("saveSchedule", this.data.form);
     this.afterSave(result);
-  },
-
-  async removeSchedule(event) {
-    const result = await app.call("deleteSchedule", { id: event.currentTarget.dataset.id });
-    this.afterSave(result);
+    await asked;
   },
 
   afterSave(result) {

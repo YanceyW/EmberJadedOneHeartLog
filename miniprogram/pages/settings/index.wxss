@@ -17,3 +17,29 @@
 .note {
   padding: 0 8rpx;
 }
+
+.danger-title {
+  color: #c0555f;
+}
+
+
+.group-title {
+  padding: 24rpx 8rpx 12rpx;
+  color: #a08b84;
+  font-size: 26rpx;
+}
+
+.group-title:first-child {
+  padding-top: 8rpx;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.go {
+  color: #d9b3bb;
+  font-size: 36rpx;
+  flex-shrink: 0;
+}

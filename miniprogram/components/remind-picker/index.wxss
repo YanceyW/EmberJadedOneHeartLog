@@ -1,0 +1,52 @@
+:host {
+  display: block;
+}
+
+.remind {
+  margin-top: 16rpx;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.name {
+  font-size: 26rpx;
+  color: #a08b84;
+}
+
+.toggle {
+  background: #f8d5dc;
+  color: #8a3d48;
+  border-radius: 999rpx;
+  padding: 8rpx 24rpx;
+  font-size: 26rpx;
+}
+
+.toggle.on {
+  background: #e9899a;
+  color: #fff;
+}
+
+.picked {
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 16rpx 20rpx;
+  margin-top: 12rpx;
+  color: #5c463f;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arrow {
+  color: #a08b84;
+}
+
+.tip {
+  color: #a08b84;
+  font-size: 24rpx;
+  margin-top: 8rpx;
+}

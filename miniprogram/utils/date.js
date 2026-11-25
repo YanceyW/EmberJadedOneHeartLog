@@ -44,9 +44,15 @@ function anniversaryOn(year, month, day) {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
+/** 今年的这个日子，已经过了就取明年。提醒时机按它算。 */
+function nextOccurrence(month, day, today) {
+  const year = Number(String(today).slice(0, 4));
+  const thisYear = anniversaryOn(year, month, day);
+  return thisYear >= today ? thisYear : anniversaryOn(year + 1, month, day);
+}
+
 /** 下一次纪念日是第几个。没填开始年份时返回 0。 */
-function anniversaryIndex(startYear, month, day, today) {
-  const year = Number(startYear);
+function anniversaryIndex(startYear, month, day, today) {  const year = Number(startYear);
   if (!year) {
     return 0;
   }
@@ -64,15 +70,6 @@ function chineseDate(year, month, day) {
   return `${Number(month)}月${Number(day)}日`;
 }
 
-const SOLAR_FESTIVALS = {
-  "1-1": "元旦",
-  "2-14": "情人节",
-  "5-1": "劳动节",
-  "6-1": "儿童节",
-  "10-1": "国庆节",
-  "12-25": "圣诞节",
-};
-
 function displayDate(text) {
   const [year, month, day] = text.split("-");
   return `${Number(month)}月${Number(day)}日`;
@@ -87,8 +84,8 @@ module.exports = {
   diffDays,
   anniversaryOn,
   anniversaryIndex,
+  nextOccurrence,
   chineseDate,
   displayDate,
   solarTermName,
-  SOLAR_FESTIVALS,
 };

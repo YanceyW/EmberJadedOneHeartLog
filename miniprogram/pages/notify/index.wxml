@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="card intro">
+    每一项单独开关。关掉后不再申请、也不再推送，已经攒下的条数会留着。
+  </view>
+
+  <view class="card item" wx:for="{{rows}}" wx:key="key">
+    <view class="line">
+      <view class="name">{{item.name}}</view>
+      <view class="toggle {{item.enabled ? 'on' : ''}}" data-key="{{item.key}}" bindtap="onToggle">{{item.enabled ? '开' : '关'}}</view>
+    </view>
+    <view class="line sub-line">
+      <view class="muted">{{item.status}} · 还剩 {{item.remain}} 条</view>
+      <view class="acts">
+        <view class="try" data-key="{{item.key}}" bindtap="onTry">试一条</view>
+        <view class="add {{item.enabled && item.ready ? '' : 'off'}}" data-key="{{item.key}}" bindtap="onAdd">+1</view>
+      </view>
+    </view>
+    <view class="muted warn" wx:if="{{!item.ready}}">后台还没找到「{{item.name}}」这个模板</view>
+  </view>
+
+  <view class="card" wx:if="{{!mainSwitch}}">
+    <view class="muted">微信里「订阅消息」的总开关是关着的，打开后才能收到。</view>
+    <view class="btn plain" bindtap="openWechatSetting">去微信设置</view>
+  </view>
+
+  <view class="card note">
+    一次授权只能换一条消息，到期不会自动续。弹窗里勾选「总是保持以上选择」后，再点「+1」不会弹窗，直接加一条。
+  </view>
+</view>

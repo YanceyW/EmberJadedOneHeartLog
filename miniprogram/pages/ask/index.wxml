@@ -35,6 +35,16 @@
             <view class="ai-badge">AI</view>
             <view>{{item.shown}}</view>
           </view>
+          <view class="proposal" wx:if="{{item.proposal && !item.proposalDone}}">
+            <view class="proposal-head">要记下这个安排吗</view>
+            <view class="proposal-title">{{item.proposal.title}}</view>
+            <view class="proposal-date">{{item.proposal.date}}<text wx:if="{{item.proposal.note}}"> · {{item.proposal.note}}</text></view>
+            <view class="proposal-row">
+              <view class="proposal-btn ghost" data-index="{{index}}" bindtap="dismissProposal">不用</view>
+              <view class="proposal-btn" data-index="{{index}}" bindtap="confirmProposal">记下</view>
+            </view>
+          </view>
+          <view class="proposal-done" wx:if="{{item.proposal && item.proposalDone}}">{{item.proposalSkipped ? '没有记' : '已记入日程'}}</view>
         </view>
       </view>
     </view>

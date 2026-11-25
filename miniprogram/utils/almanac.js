@@ -1,16 +1,18 @@
 /**
- * 今年的黄历宜忌。用 lunar-javascript 的默认流派（节气当天起月）。
- * 只覆盖当前公历年，翻到别的年份不显示。
+ * 黄历宜忌。用 lunar-javascript 的默认流派（节气当天起月）。
+ * 农历库覆盖 1920–2100，这之外返回 null；范围内任何一年都能算，不用每年更新。
  */
 const { Solar } = require("./lunar-lib.js");
+
+const FIRST_YEAR = 1920;
+const LAST_YEAR = 2100;
 
 function joinItems(list) {
   return (list || []).filter((item) => item && item !== "无").join("、");
 }
 
 function dayAlmanac(year, month, day) {
-  const now = new Date();
-  if (year !== now.getFullYear()) {
+  if (!year || year < FIRST_YEAR || year > LAST_YEAR) {
     return null;
   }
   try {

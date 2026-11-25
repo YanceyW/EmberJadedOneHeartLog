@@ -17,17 +17,20 @@
     </view>
   </view>
   <view class="muted hint" wx:if="{{hint}}">{{hint}}</view>
+  <view class="muted hint holiday-tip" wx:if="{{holidaysStale}}" bindtap="retryHolidays">{{holidaysStale}} · 点这里重试</view>
 
   <view class="viewport">
-  <view class="stage" style="transform: translateY({{offsetY}}px); transition: {{dragging ? 'none' : 'transform 0.28s ease'}};">
+  <view class="stage">
     <view class="board month {{monthAnim}}" bindtouchstart="onMonthStart" catchtouchmove="onMonthMove" bindtouchend="onMonthEnd">
       <view class="week">
         <view class="weekday" wx:for="{{week}}" wx:key="*this">{{item}}</view>
       </view>
       <view class="grid">
-        <view id="{{item.date ? 'd-' + item.date : item.key}}" class="cell {{item.today ? 'today' : ''}} {{item.date === selectedDate ? 'selected' : ''}}" wx:for="{{cells}}" wx:key="key" data-date="{{item.date}}" bindtap="openDay" bindlongpress="openMenu">
+        <view id="{{item.date ? 'd-' + item.date : item.key}}" class="cell {{item.today ? 'today' : ''}} {{item.date === selectedDate ? 'selected' : ''}} {{item.rest ? 'is-rest' : ''}} {{item.work ? 'is-work' : ''}}" wx:for="{{cells}}" wx:key="key" data-date="{{item.date}}" bindtap="openDay" bindlongpress="openMenu">
           <view class="daynum" wx:if="{{!item.empty}}">{{item.day}}</view>
-          <view class="lunar" wx:if="{{!item.empty}}">{{item.lunar}}</view>
+          <view class="badge" wx:if="{{item.rest}}">休</view>
+          <view class="badge work" wx:elif="{{item.work}}">班</view>
+          <view class="lunar {{item.rest || item.work ? 'has-festival' : ''}}" wx:if="{{!item.empty}}">{{item.festival || item.lunar}}</view>
           <view class="icons" wx:if="{{!item.empty}}">
             <block wx:for="{{item.icons}}" wx:for-item="icon" wx:key="*this">
               <view wx:if="{{icon === 'period' || icon === 'predicted'}}" class="heart {{icon}}"></view>
@@ -49,6 +52,7 @@
         <view>
           <view class="lunar-hero">{{focusLunar}}</view>
           <view class="muted" wx:if="{{focusWeek}}">{{focusWeek}}</view>
+          <view class="holiday-line" wx:if="{{focusHoliday}}">{{focusHoliday}}</view>
         </view>
         <view class="pillars" wx:if="{{pillars.length}}">
           <view class="pillar" wx:for="{{pillars}}" wx:key="name">
@@ -147,6 +151,7 @@
           <view class="chip {{form.visibility === 'self' ? 'on' : ''}}" data-key="visibility" data-value="self" bindtap="setForm">仅自己可见</view>
           <view class="chip {{form.visibility !== 'self' ? 'on' : ''}}" data-key="visibility" data-value="both" bindtap="setForm">双方可见</view>
         </view>
+        <remind-picker value="{{form.remind}}" target-date="{{form.remindDate}}" bind:change="onRemind" />
         <view class="btn" bindtap="saveAnniversary">保存纪念日</view>
       </block>
       <block wx:if="{{sheet === 'birthday'}}">
@@ -165,6 +170,12 @@
         <picker wx:else mode="multiSelector" range="{{form.birthRange}}" value="{{form.birthIndex}}" bindcolumnchange="onBirthdayColumn" bindchange="onBirthdayLunar">
           <view class="picker">{{form.dateText || '选择农历生日'}}</view>
         </picker>
+        <remind-picker
+          value="{{form.remind}}"
+          target-date="{{form.remindDate}}"
+          hint="{{form.calendar === 'lunar' ? '农历生日暂不支持提醒' : ''}}"
+          bind:change="onRemind"
+        />
         <view class="row">
           <view class="chip {{form.visibility === 'self' ? 'on' : ''}}" data-key="visibility" data-value="self" bindtap="setForm">仅自己可见</view>
           <view class="chip {{form.visibility !== 'self' ? 'on' : ''}}" data-key="visibility" data-value="both" bindtap="setForm">双方可见</view>
@@ -181,12 +192,7 @@
           </picker>
         </view>
         <input class="field" data-key="note" value="{{form.note}}" placeholder="一句备注" bindinput="onForm" />
-        <view class="label">提醒</view>
-        <view class="row">
-          <view class="chip {{form.remind === 'dayBefore' || !form.remind ? 'on' : ''}}" data-key="remind" data-value="dayBefore" bindtap="setForm">前一天</view>
-          <view class="chip {{form.remind === 'sameDay' ? 'on' : ''}}" data-key="remind" data-value="sameDay" bindtap="setForm">当天</view>
-          <view class="chip {{form.remind === 'none' ? 'on' : ''}}" data-key="remind" data-value="none" bindtap="setForm">不提醒</view>
-        </view>
+        <remind-picker value="{{form.remind}}" target-date="{{form.remindDate}}" hint="到点会给双方发一条服务通知" bind:change="onRemind" />
         <view class="row">
           <view class="chip {{form.visibility === 'self' ? 'on' : ''}}" data-key="visibility" data-value="self" bindtap="setForm">仅自己可见</view>
           <view class="chip {{form.visibility !== 'self' ? 'on' : ''}}" data-key="visibility" data-value="both" bindtap="setForm">双方可见</view>

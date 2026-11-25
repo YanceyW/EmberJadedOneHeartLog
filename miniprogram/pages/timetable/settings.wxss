@@ -1,0 +1,282 @@
+.page {
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
+}
+
+.guide-step {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #8a7b76;
+}
+
+.guide-num {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  margin-top: 4rpx;
+  border-radius: 50%;
+  background: #f6dfe4;
+  color: #8a3d48;
+  text-align: center;
+  font-size: 20rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 6rpx;
+}
+
+.section-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #5c463f;
+}
+
+/* ---------- 分组 ---------- */
+.group-list {
+  margin-top: 12rpx;
+}
+
+.group-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12rpx 4rpx;
+  border-bottom: 1rpx solid #f6e7e2;
+}
+
+.group-line:last-child {
+  border-bottom: none;
+}
+
+.group-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 28rpx;
+  color: #5c463f;
+}
+
+.group-del {
+  width: 56rpx;
+  text-align: right;
+  font-size: 26rpx;
+  color: #c9a49c;
+}
+
+.group-add {
+  margin-top: 12rpx;
+  padding: 16rpx 0;
+  text-align: center;
+  border-radius: 16rpx;
+  border: 1rpx dashed #ecd3d8;
+  background: #fffaf8;
+  color: #8a3d48;
+  font-size: 26rpx;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid #f6e7e4;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row-label {
+  font-size: 28rpx;
+  color: #5c463f;
+}
+
+.picker-val {
+  font-size: 28rpx;
+  color: #8a3d48;
+  background: #fff7f4;
+  border-radius: 16rpx;
+  padding: 8rpx 20rpx;
+}
+
+.link {
+  font-size: 26rpx;
+  color: #b8566a;
+}
+
+.period {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f6e7e4;
+}
+
+.period-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.period-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #5c463f;
+  background: #fff7f4;
+  border-radius: 16rpx;
+  padding: 10rpx 18rpx;
+  margin: 0;
+}
+
+.period-times {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 10rpx;
+}
+
+.dash {
+  color: #bda7a1;
+  font-size: 24rpx;
+}
+
+.group-chip {
+  margin-left: auto;
+  font-size: 24rpx;
+  color: #ffffff;
+  background: #e9899a;
+  border-radius: 999rpx;
+  padding: 4rpx 18rpx;
+}
+
+.period-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  flex: none;
+}
+
+.tool {
+  width: 56rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #8a3d48;
+  background: #fff7f4;
+  border-radius: 14rpx;
+}
+
+.tool.off {
+  color: #e3d3cf;
+}
+
+.tool.danger {
+  color: #b8566a;
+}
+
+.period-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.period-actions .btn {
+  flex: 1;
+  font-size: 28rpx;
+  line-height: 72rpx;
+}
+
+.foot {
+  font-size: 22rpx;
+  text-align: center;
+  margin-top: 10rpx;
+}
+
+.save-bar {
+  position: fixed;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: calc(24rpx + env(safe-area-inset-bottom));
+  z-index: 20;
+}
+
+.seg {
+  display: flex;
+  gap: 8rpx;
+  background: #fff7f4;
+  border-radius: 999rpx;
+  padding: 6rpx;
+  margin: 16rpx 0 12rpx;
+}
+
+.seg-item {
+  flex: 1;
+  text-align: center;
+  line-height: 60rpx;
+  font-size: 26rpx;
+  color: #a08b84;
+  border-radius: 999rpx;
+}
+
+.seg-item.on {
+  background: #e9899a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.split-row {
+  border-bottom: 1rpx solid #f6e7e4;
+}
+
+.grow {
+  flex: 1;
+}
+
+.keep {
+  font-size: 24rpx;
+  line-height: 1.6;
+  padding-top: 14rpx;
+}
+.time-field {
+  display: flex;
+  align-items: stretch;
+  background: #fff7f4;
+  border-radius: 14rpx;
+  overflow: hidden;
+}
+
+.time-input {
+  width: 104rpx;
+  min-height: 0;
+  height: 64rpx;
+  margin: 0;
+  padding: 0 0 0 10rpx;
+  background: transparent;
+  border-radius: 0;
+  font-size: 26rpx;
+  color: #8a3d48;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.time-picker {
+  display: flex;
+}
+
+.time-caret {
+  width: 60rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22rpx;
+  color: #b08b91;
+  background: #fbe7ea;
+}

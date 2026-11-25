@@ -101,12 +101,7 @@
   box-shadow: 0 12rpx 32rpx rgba(92, 70, 63, 0.16);
 }
 
-.small {
-  width: 140rpx;
-  line-height: 64rpx;
-}
-
-.hint, .swipe {
+.hint {
   margin: 8rpx 0 16rpx;
 }
 
@@ -219,7 +214,7 @@
 .upcoming {
   position: relative;
   z-index: 1;
-  margin-top: 28rpx;
+  margin: 28rpx 32rpx 0;
   background: #fffaf8;
   border-radius: 28rpx;
   padding: 8rpx 20rpx 12rpx;
@@ -390,11 +385,6 @@
   z-index: 19;
 }
 
-.lunar-full {
-  margin-top: 8rpx;
-  color: #8a3d48;
-}
-
 .yi-row {
   display: flex;
   align-items: flex-start;
@@ -403,7 +393,7 @@
 }
 
 .almanac-brief {
-  margin-top: 20rpx;
+  margin: 20rpx 32rpx 0;
   padding: 28rpx 24rpx;
   background: #fff;
   border-radius: 28rpx;
@@ -485,18 +475,6 @@
   border-top: 2rpx solid #f3d5dc;
 }
 
-.day-pop {
-  position: fixed;
-  z-index: 85;
-  width: 260px;
-  overflow: auto;
-  background: #fffaf8;
-  border-radius: 24rpx;
-  box-shadow: 0 12rpx 32rpx rgba(92, 70, 63, 0.16);
-  padding: 20rpx 24rpx;
-  box-sizing: border-box;
-}
-
 .arrow {
   width: 80rpx;
   text-align: center;
@@ -507,32 +485,12 @@
 }
 
 
-.almanac-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 90;
-  background: #fffaf8;
-  border-radius: 32rpx 32rpx 0 0;
-  padding: 12rpx 32rpx 48rpx;
-  box-sizing: border-box;
-  overflow: auto;
-}
-
 .grab {
   width: 72rpx;
   height: 8rpx;
   border-radius: 8rpx;
   background: #f3d5dc;
   margin: 8rpx auto 20rpx;
-}
-
-.brief {
-  margin-top: 24rpx;
-  padding-top: 20rpx;
-  border-top: 2rpx solid #f3d5dc;
-  color: #5c463f;
 }
 
 .to-left {
@@ -789,4 +747,43 @@
   top: 16rpx;
   bottom: 8rpx;
   border-top: 3rpx solid #e9899a;
+}
+
+/* ---------- 法定节假日 ---------- */
+.cell {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  right: 6rpx;
+  top: 4rpx;
+  width: 26rpx;
+  height: 26rpx;
+  line-height: 26rpx;
+  border-radius: 8rpx;
+  font-size: 18rpx;
+  text-align: center;
+  color: #ffffff;
+  background: #e9899a;
+}
+
+.badge.work {
+  background: #9aa7b8;
+}
+
+.lunar.has-festival {
+  color: #b8566a;
+  font-weight: 600;
+}
+
+.holiday-tip {
+  color: #b8566a;
+}
+
+.holiday-line {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #b8566a;
+  line-height: 1.5;
 }

@@ -1,84 +1,133 @@
-<scroll-view class="page" scroll-y bindscroll="onPageScroll">
-  <view class="hello card">
-    <view class="mini-heart"></view>
-    <view>
-      <view class="title">{{hello}}</view>
-      <view class="muted">{{todayLine}}</view>
-      <view class="muted">今天也要好好照顾彼此</view>
-    </view>
-  </view>
+<scroll-view class="page {{editing ? 'page-editing' : ''}}" scroll-y bindscroll="onPageScroll">
+  <view class="edit-guide" wx:if="{{editing}}">拖动 ☰ 换顺序 · 点 ✕ 移除 · 下面可以加回来</view>
 
-  <view class="card weather-card {{skyOn ? 'sky-on' : 'no-sky'}} {{skyBroken ? 'sky-broken' : ''}} {{skyDark ? 'is-dark' : ''}}" style="{{skyStyle}}" bindtouchstart="onSkyTouchStart" bindtouchmove="onSkyTouchMove" bindtouchend="onSkyTouchEnd" bindtouchcancel="onSkyTouchEnd">
-    <view class="sky-fallback"></view>
-    <canvas wx:if="{{skyOn && !skyBroken}}" type="2d" id="card-sky" class="sky-canvas" bindrendererror="onSkyRenderError" binderror="onSkyRenderError"></canvas>
-    <view class="sky-veil" wx:if="{{skyOn}}"></view>
-    <view class="weather-copy">
-    <view class="row-between">
-      <view>
-        <view class="place" wx:if="{{weatherPlace}}">{{weatherPlace}}</view>
-        <view class="weather-chip" wx:if="{{weatherName}}">
-          <weather-icon class="chip-icon" kind="{{weatherKind}}" tone="{{skyPhase}}" size="{{34}}" />
-          <text class="weather-chip-text">{{weatherName}}</text>
+  <block wx:for="{{cards}}" wx:for-item="card" wx:for-index="ci" wx:key="key">
+    <view class="slot {{editing ? 'is-editing' : ''}} {{dragIndex === ci ? 'is-dragging' : ''}}" style="{{dragIndex === ci ? 'transform: translateY(' + dragDy + 'px);' : ''}}" bindlongpress="enterEdit">
+      <view class="slot-tools" wx:if="{{editing}}">
+        <view class="slot-grip" data-index="{{ci}}" bindtouchstart="dragStart" catchtouchmove="dragMove" bindtouchend="dragEnd" bindtouchcancel="dragEnd">☰</view>
+        <view class="slot-name">{{card.name}}</view>
+        <view class="slot-remove" data-key="{{card.key}}" bindtap="removeCard">✕</view>
+      </view>
+
+      <view class="hello card" wx:if="{{card.key === 'hello'}}">
+        <view class="mini-heart"></view>
+        <view class="card-manage" wx:if="{{!editing}}" catchtap="enterEdit">管理</view>
+        <view>
+          <view class="title">{{hello}}</view>
+          <view class="muted">{{todayLine}}</view>
+          <view class="muted">今天也要好好照顾彼此</view>
         </view>
       </view>
-      <view class="refresh" bindtap="refreshWeather">{{refreshing ? '刷新中' : '刷新'}}</view>
-    </view>
-    <view class="weather-hero" wx:if="{{weatherTemp}}" bindlongpress="holdTemp">
-      <view class="temp-big">{{weatherTemp}}°</view>
-    </view>
-    <view class="title" wx:else bindlongpress="holdTemp">{{weatherText}}</view>
-    <view class="muted" wx:if="{{tempMin !== '' && tempMax !== ''}}">{{tempMin}}° / {{tempMax}}°<text wx:if="{{feelsLike}}"> · 体感 {{feelsLike}}°</text></view>
-    <scroll-view class="hour-scroll" scroll-x wx:if="{{hours.length}}">
-      <view class="hour {{item.mark ? 'mark' : ''}}" wx:for="{{hours}}" wx:key="label">
-        <view class="hour-label">{{item.label}}</view>
-        <weather-icon class="hour-icon" kind="{{item.kind}}" tone="{{item.tone}}" size="{{32}}" />
-        <view>{{item.temp}}°</view>
+
+      <view class="card lesson-card mode-{{lesson.mode || 'empty'}}" wx:elif="{{card.key === 'lesson'}}" bindtap="openTimetable">
+        <view class="row-between lesson-top">
+          <view class="lesson-day">{{lesson.label || '今天的课'}}</view>
+          <view class="lesson-side" wx:if="{{lesson.side}}">{{lesson.side}}</view>
+        </view>
+        <view class="lesson-tag" wx:if="{{lesson.tag}}">{{lesson.tag}}</view>
+        <view wx:if="{{lesson.title}}">
+          <view class="lesson-headline">{{lesson.title}}</view>
+          <view class="lesson-meta" wx:if="{{lesson.sub}}">{{lesson.sub}}</view>
+        </view>
+        <block wx:else>
+          <view class="lesson-headline">
+            <text class="lesson-badge" wx:if="{{lesson.badge}}">{{lesson.badge}}</text>
+            <text class="lesson-focus" wx:elif="{{lesson.focus}}">{{lesson.focus}}</text>
+            <text class="lesson-clock" wx:if="{{lesson.clock}}">{{lesson.clock}}</text>
+            <text class="lesson-text" wx:if="{{lesson.text}}">{{lesson.text}}</text>
+          </view>
+          <view class="lesson-meta" wx:if="{{lesson.name}}">{{lesson.name}}</view>
+          <view class="row-between lesson-foot">
+            <view class="lesson-tail">
+              <block wx:for="{{lesson.preview}}" wx:key="start">
+                <text class="tail-clock">{{item.start}}</text>
+                <text class="tail-text">{{item.text}}</text>
+                <text class="tail-dot" wx:if="{{index < lesson.preview.length - 1}}">·</text>
+              </block>
+            </view>
+            <view class="lesson-more">查看整周 ›</view>
+          </view>
+        </block>
       </view>
-    </scroll-view>
-    <view class="hint-line" wx:for="{{hints}}" wx:for-index="hintIndex" wx:key="hintIndex">{{item}}</view>
-    <view class="muted" wx:if="{{windText || humidityText}}">{{windText}}<text wx:if="{{windText && humidityText}}"> · </text><text wx:if="{{humidityText}}">湿度 {{humidityText}}%</text></view>
-    <view class="muted" wx:if="{{clothing}}">{{clothing}}</view>
-    <view class="care" wx:if="{{care}}">{{care}}</view>
-    <view class="muted" wx:if="{{weatherHint}}">{{weatherHint}}</view>
-    <picker wx:if="{{needCity}}" mode="region" value="{{region}}" bindchange="onCity">
-      <view class="picker">{{cityName || '选择城市'}}</view>
-    </picker>
-    <view wx:if="{{needLocate}}" class="locate" bindtap="openPermissions">去设置里打开定位</view>
-    <view class="sky-preview" wx:if="{{skyPreview}}">
-      <view class="sky-choice {{skyPicked === item.key ? 'on' : ''}}" wx:for="{{skyChoices}}" wx:key="key" data-key="{{item.key}}" bindtap="pickSky">{{item.name}}</view>
-      <view class="sky-choice {{skyNight ? 'on' : ''}}" bindtap="toggleNight">晚上</view>
-      <view class="sky-back" bindtap="restoreSky">回到实际天气</view>
+
+      <view class="card weather-card {{skyOn ? 'sky-on' : 'no-sky'}} {{skyBroken ? 'sky-broken' : ''}} {{skyDark ? 'is-dark' : ''}}" wx:elif="{{card.key === 'weather'}}" style="{{skyStyle}}" bindtouchstart="onSkyTouchStart" bindtouchmove="onSkyTouchMove" bindtouchend="onSkyTouchEnd" bindtouchcancel="onSkyTouchEnd">
+        <view class="sky-fallback"></view>
+        <canvas wx:if="{{skyOn && !skyBroken}}" type="2d" id="card-sky" class="sky-canvas" bindrendererror="onSkyRenderError" binderror="onSkyRenderError"></canvas>
+        <view class="sky-veil" wx:if="{{skyOn}}"></view>
+        <view class="weather-copy">
+        <view class="row-between">
+          <view>
+            <view class="place" wx:if="{{weatherPlace}}">{{weatherPlace}}</view>
+            <view class="weather-chip" wx:if="{{weatherName}}">
+              <weather-icon class="chip-icon" kind="{{weatherKind}}" tone="{{skyPhase}}" size="{{34}}" />
+              <text class="weather-chip-text">{{weatherName}}</text>
+            </view>
+          </view>
+          <view class="refresh" bindtap="refreshWeather">{{refreshing ? '刷新中' : '刷新'}}</view>
+        </view>
+        <view class="weather-hero" wx:if="{{weatherTemp}}" bindlongpress="holdTemp">
+          <view class="temp-big">{{weatherTemp}}°</view>
+        </view>
+        <view class="title" wx:else bindlongpress="holdTemp">{{weatherText}}</view>
+        <view class="muted" wx:if="{{tempMin !== '' && tempMax !== ''}}">{{tempMin}}° / {{tempMax}}°<text wx:if="{{feelsLike}}"> · 体感 {{feelsLike}}°</text></view>
+        <scroll-view class="hour-scroll" scroll-x wx:if="{{hours.length}}">
+          <view class="hour {{item.mark ? 'mark' : ''}}" wx:for="{{hours}}" wx:key="label">
+            <view class="hour-label">{{item.label}}</view>
+            <weather-icon class="hour-icon" kind="{{item.kind}}" tone="{{item.tone}}" size="{{32}}" />
+            <view>{{item.temp}}°</view>
+          </view>
+        </scroll-view>
+        <view class="hint-line" wx:for="{{hints}}" wx:for-index="hintIndex" wx:key="hintIndex">{{item}}</view>
+        <view class="muted" wx:if="{{windText || humidityText}}">{{windText}}<text wx:if="{{windText && humidityText}}"> · </text><text wx:if="{{humidityText}}">湿度 {{humidityText}}%</text></view>
+        <view class="muted" wx:if="{{clothing}}">{{clothing}}</view>
+        <view class="care" wx:if="{{care}}">{{care}}</view>
+        <view class="muted" wx:if="{{weatherHint}}">{{weatherHint}}</view>
+        <picker wx:if="{{needCity}}" mode="region" value="{{region}}" bindchange="onCity">
+          <view class="picker">{{cityName || '选择城市'}}</view>
+        </picker>
+        <view wx:if="{{needLocate}}" class="locate" bindtap="openPermissions">去设置里打开定位</view>
+        <view class="sky-preview" wx:if="{{skyPreview}}">
+          <view class="sky-choice {{skyPicked === item.key ? 'on' : ''}}" wx:for="{{skyChoices}}" wx:key="key" data-key="{{item.key}}" bindtap="pickSky">{{item.name}}</view>
+          <view class="sky-phase {{skyPhasePick === item.key ? 'on' : ''}}" wx:for="{{skyPhases}}" wx:key="key" data-key="{{item.key}}" bindtap="pickPhase">{{item.name}}</view>
+          <view class="sky-back" bindtap="restoreSky">回到实际天气</view>
+        </view>
+        </view>
+      </view>
+
+      <view class="card note-card" wx:elif="{{card.key === 'note' && noteVisible}}">
+        <view class="section-title" wx:if="{{noteText}}">{{noteFrom}}想对你说</view>
+        <view class="section-title" wx:else>TA 还没有留话</view>
+        <view class="note-body" wx:if="{{noteText}}">{{noteText}}</view>
+        <view class="ask" bindtap="openNote">{{noteText ? '也留一句' : '留一句'}}</view>
+      </view>
+
+      <view class="card" wx:elif="{{card.key === 'ai' && aiLines.length}}">
+        <view class="section-title">今日建议</view>
+        <view class="ai-badge">AI</view>
+        <view class="ai-score" wx:if="{{aiScore}}">综合 {{aiScore}}</view>
+        <view class="ai-line" wx:for="{{aiLines}}" wx:key="*this">{{item}}</view>
+        <view class="muted note">仅供参考</view>
+        <view class="ask" bindtap="openAsk">再问一句</view>
+      </view>
+
+      <view class="card remind" wx:elif="{{card.key === 'remind' && reminder && !aiLines.length}}">
+        <view class="mini-heart still"></view>
+        <view>
+          <view>{{reminder}}</view>
+          <view class="muted">仅供生活参考，不是医疗判断</view>
+        </view>
+      </view>
+
+      <view class="card next" wx:elif="{{card.key === 'next'}}" bindtap="openCalendar">
+        <view class="section-title">临近</view>
+        <view>{{nextText}}</view>
+      </view>
     </view>
-    </view>
-  </view>
+  </block>
 
-  <view class="card note-card" wx:if="{{noteVisible}}">
-    <view class="section-title" wx:if="{{noteText}}">{{noteFrom}}想对你说</view>
-    <view class="section-title" wx:else>TA 还没有留话</view>
-    <view class="note-body" wx:if="{{noteText}}">{{noteText}}</view>
-    <view class="ask" bindtap="openNote">{{noteText ? '也留一句' : '留一句'}}</view>
-  </view>
-
-  <view class="card" wx:if="{{aiLines.length}}">
-    <view class="section-title">今日建议</view>
-    <view class="ai-badge">AI</view>
-    <view class="ai-score" wx:if="{{aiScore}}">综合 {{aiScore}}</view>
-    <view class="ai-line" wx:for="{{aiLines}}" wx:key="*this">{{item}}</view>
-    <view class="muted note">仅供参考</view>
-    <view class="ask" bindtap="openAsk">再问一句</view>
-  </view>
-
-  <view class="card remind" wx:if="{{reminder && !aiLines.length}}">
-    <view class="mini-heart still"></view>
-    <view>
-      <view>{{reminder}}</view>
-      <view class="muted">仅供生活参考，不是医疗判断</view>
-    </view>
-  </view>
-
-  <view class="card next" bindtap="openCalendar">
-    <view class="section-title">临近</view>
-    <view>{{nextText}}</view>
+  <view class="empty-cards" wx:if="{{!cards.length}}">
+    <view class="title">首页空着</view>
+    <view class="muted">点下面「添加卡片」把想看的放回来</view>
   </view>
 
   <view style="height: {{tabClearance}}px;"></view>
@@ -91,4 +140,25 @@
       <view class="btn" bindtap="sendNote">{{noteSending ? '送出中' : '送出'}}</view>
     </view>
   </view>
+
+  <view class="mask" wx:if="{{addOpen}}" bindtap="closeAdd">
+    <view class="sheet" style="padding-bottom: {{tabClearance}}px;" catchtap="noop">
+      <view class="section-title">加一张卡片</view>
+      <view class="chip-wrap" wx:if="{{addable.length}}">
+        <view class="chip" wx:for="{{addable}}" wx:key="key" data-key="{{item.key}}" bindtap="addCard">
+          <view class="chip-name">{{item.name}}</view>
+          <view class="chip-desc">{{item.desc}}</view>
+        </view>
+      </view>
+      <view class="muted" wx:else>所有卡片都在首页了</view>
+      <view class="btn" bindtap="closeAdd">好了</view>
+    </view>
+  </view>
 </scroll-view>
+
+<view class="insert-line" wx:if="{{dragIndex >= 0}}" style="top: {{insertTop}}px; left: {{insertLeft}}px; width: {{insertWidth}}px;"></view>
+
+<view class="edit-bar" wx:if="{{editing}}" style="bottom: {{tabClearance - 12}}px;">
+  <view class="edit-btn ghost" bindtap="openAdd">＋ 添加卡片</view>
+  <view class="edit-btn" bindtap="exitEdit">完成</view>
+</view>

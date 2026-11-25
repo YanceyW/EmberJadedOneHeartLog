@@ -3,8 +3,10 @@
     "pages/main/index",
     "pages/profile/index",
     "pages/partner/index",
+    "pages/notify/index",
     "pages/settings/index",
-    "pages/soon/index"
+    "pages/timetable/index",
+    "pages/timetable/settings"
   ],
   "window": {
     "navigationBarTitleText": "",

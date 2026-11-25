@@ -1,10 +1,13 @@
 const app = getApp();
 const { buildMarks } = require("../../utils/cycle");
-const { addDays, anniversaryOn, anniversaryIndex, diffDays, displayDate, solarTermName, SOLAR_FESTIVALS, todayString } = require("../../utils/date");
+const { addDays, anniversaryOn, anniversaryIndex, diffDays, displayDate, solarTermName, todayString } = require("../../utils/date");
+const festivals = require("../../utils/festivals");
+const { dayLabel } = festivals;
 const { solarToLunar } = require("../../utils/lunar");
 const { birthdayPhrase } = require("../../utils/birthday");
 const { getTabClearance, watchTabClearance } = require("../../utils/layout");
-const { TEMPLATE_ID, requestOnce } = require("../../utils/subscribe");
+const subscribe = require("../../utils/subscribe");
+const homeCards = require("../../utils/home-cards");
 const { skyMoment, moonMoment, moonPhaseKey, skyColors, clockMinutes, frameEdges, createCast, stepCast, paintCast, nudgeCast, brushSnow, pokeFog, makeFlakeSprite } = require("../../utils/sky");
 
 const DEFAULT_NOTE = "今天也要好好照顾自己。";
@@ -20,22 +23,35 @@ const SKY_CHOICES = [
   { key: "wind", name: "有风" },
 ];
 
-const LUNAR_FESTIVALS = {
-  "1-1": "春节",
-  "1-15": "元宵节",
-  "5-5": "端午节",
-  "7-7": "七夕",
-  "8-15": "中秋节",
-  "9-9": "重阳节",
-};
+/** 预览时能锁定的天色，白天和夜里各套一遍，八种天气才看得全。 */
+const SKY_PHASES = [
+  { key: "day", name: "白天" },
+  { key: "dawn", name: "日出" },
+  { key: "dusk", name: "日落" },
+  { key: "night", name: "夜里" },
+];
+
+/** 预览锁住天色时，给太阳和月亮一个固定的位置，八个天气看起来一致。 */
+function previewPlace(phase) {
+  if (phase === "dawn") return { sunX: 0.16, sunY: 0.31, moonX: 0.7, moonY: 0.16 };
+  if (phase === "dusk") return { sunX: 0.8, sunY: 0.31, moonX: 0.7, moonY: 0.16 };
+  if (phase === "night") return { sunX: 0.74, sunY: 0.2, moonX: 0.66, moonY: 0.15 };
+  return { sunX: 0.74, sunY: 0.18, moonX: 0.7, moonY: 0.16 };
+}
+
+function weekdayChar(text) {
+  const [year, month, day] = String(text || todayString()).split("-").map(Number);
+  return "日一二三四五六"[new Date(year, month - 1, day).getDay()];
+}
 
 function todayCaption() {
   const text = todayString();
   const [year, month, day] = text.split("-").map((item) => Number(item));
   const week = "日一二三四五六"[new Date(year, month - 1, day).getDay()];
   const lunar = solarToLunar(year, month, day);
-  const lunarFest = lunar && !lunar.isLeap ? LUNAR_FESTIVALS[`${lunar.month}-${lunar.day}`] : "";
-  const extra = [solarTermName(year, month, day), lunarFest, SOLAR_FESTIVALS[`${month}-${day}`]].filter(Boolean).join(" · ");
+  // 法定假期名优先，其次农历节日，最后阳历节日；节气单独排在最前面。
+  const festival = dayLabel(text, lunar);
+  const extra = [solarTermName(year, month, day), festival].filter(Boolean).join(" · ");
   return `${month}月${day}日 星期${week}${extra ? ` · ${extra}` : ""}`;
 }
 
@@ -73,16 +89,28 @@ Component({
     noteOpen: false,
     noteDraft: "",
     noteSending: false,
-    subscribeHint: !!TEMPLATE_ID,
+    subscribeHint: false,
     skyPreview: false,
     skyChoices: SKY_CHOICES,
+    skyPhases: SKY_PHASES,
     skyPicked: "",
-    skyNight: false,
+    skyPhasePick: "",
     skyOn: false,
     skyDark: false,
     skyPhase: "day",
     skyBroken: false,
     skyStyle: "",
+    cards: homeCards.describe(homeCards.DEFAULT_ORDER),
+    addable: [],
+    editing: false,
+    addOpen: false,
+    dragIndex: -1,
+    dragDy: 0,
+    insertAt: -1,
+    insertTop: 0,
+    insertLeft: 0,
+    insertWidth: 0,
+    lesson: null,
   },
   properties: {
     active: {
@@ -154,6 +182,7 @@ Component({
     }
     const cityName = wx.getStorageSync("weather-city") || "";
     const cityParts = cityName.split(" ");
+    this.openid = result.user.openid;
     this.setGreeting(result.user.nickName);
     this.setData({
       reminder: this.buildReminder(result),
@@ -162,6 +191,8 @@ Component({
       region: cityParts.length === 3 ? cityParts : this.data.region,
     });
     this.ready = true;
+    this.loadCards();
+    this.refreshLesson();
     this.showCachedReading();
     const weather = await this.ensureWeather(false);
     await this.loadNote(result);
@@ -196,7 +227,13 @@ Component({
   },
 
   openNote() {
+    if (this.data.editing) return;
     this.setData({ noteOpen: true, noteDraft: "" });
+    // 先把模板 ID 取回来，点「送出」时才能在同步回调里发起订阅
+    subscribe.preload().then((templates) => {
+      const note = (templates || []).find((item) => item.key === "note");
+      this.setData({ subscribeHint: !!(note && note.templateId) });
+    });
   },
 
   closeNote() {
@@ -216,18 +253,18 @@ Component({
     if (!text || this.data.noteSending) {
       return;
     }
-    const go = () => this.saveNote(text);
-    if (!TEMPLATE_ID) {
-      go();
-      return;
-    }
-    requestOnce().then(go);
+    // 订阅要在这个点击回调里同步发起，发出去之后再落库
+    const asked = subscribe.request(["note"]);
+    this.saveNote(text, asked);
   },
 
-  async saveNote(text) {
+  async saveNote(text, asked) {
     this.setData({ noteSending: true });
     const result = await app.call("sendNote", { text });
     this.setData({ noteSending: false });
+    if (asked) {
+      await asked;
+    }
     if (!result.ok) {
       wx.showToast({ title: result.message || "没有送出", icon: "none" });
       return;
@@ -326,6 +363,14 @@ Component({
     (session.schedules || []).forEach((item) => {
       if (item.date >= today && item.date <= end) items.push({ date: item.date, title: item.title });
     });
+    festivals.nextOffDays(today, end).forEach((item) => {
+      if (item.type === "workday") {
+        items.push({ date: item.date, title: `${item.name}调休上班` });
+        return;
+      }
+      const title = item.ongoing ? `${item.name}（到 ${displayDate(item.to)}）` : `${item.name}放假`;
+      items.push({ date: item.date, title });
+    });
     items.sort((left, right) => (left.date < right.date ? -1 : 1));
     if (!items.length) return "最近还没有安排";
     const first = items[0];
@@ -333,53 +378,268 @@ Component({
   },
 
   openCalendar() {
+    if (this.data.editing) return;
     this.triggerEvent("jumpto", { index: 1 });
   },
 
   openAsk() {
+    if (this.data.editing) return;
     this.triggerEvent("ask");
   },
 
+  /* ---------------- 首页卡片：顺序、增删 ---------------- */
+
+  loadCards() {
+    this.cardState = homeCards.load(this.openid);
+    this.setData({
+      cards: homeCards.describe(this.cardState.list),
+      addable: homeCards.hidden(this.cardState),
+    });
+  },
+
+  saveCards(value) {
+    this.cardState = homeCards.save(this.openid, value);
+    this.setData({
+      cards: homeCards.describe(this.cardState.list),
+      addable: homeCards.hidden(this.cardState),
+    });
+  },
+
+  enterEdit() {
+    if (this.data.editing || this.data.skyPreview) {
+      return;
+    }
+    wx.vibrateShort({ type: "light", fail() {} });
+    this.setData({ editing: true, addOpen: false });
+  },
+
+  exitEdit() {
+    this.setData({ editing: false, addOpen: false, dragIndex: -1, insertAt: -1 });
+    this.dragFrom = -1;
+    this.slotRects = null;
+  },
+
+  removeCard(event) {
+    const key = event.currentTarget.dataset.key;
+    const card = (this.data.cards || []).find((item) => item.key === key);
+    if (!card) {
+      return;
+    }
+    this.saveCards(homeCards.removeCard(this.cardState, key));
+    wx.showToast({ title: `已移除「${card.name}」`, icon: "none" });
+  },
+
+  openAdd() {
+    this.setData({ addOpen: true });
+  },
+
+  closeAdd() {
+    this.setData({ addOpen: false });
+  },
+
+  addCard(event) {
+    const key = event.currentTarget.dataset.key;
+    this.saveCards(homeCards.addCard(this.cardState, key));
+    if (key === "lesson") {
+      this.refreshLesson();
+    }
+  },
+
+  measureSlots() {
+    wx.createSelectorQuery()
+      .in(this)
+      .selectAll(".slot")
+      .boundingClientRect((rects) => {
+        if (!rects || !rects.length) {
+          return;
+        }
+        this.slotRects = rects;
+        this.setData({ insertLeft: rects[0].left, insertWidth: rects[0].width });
+        this.updateInsert(this.dragClientY);
+      })
+      .exec();
+  },
+
+  dragStart(event) {
+    if (!this.data.editing) {
+      return;
+    }
+    const index = Number(event.currentTarget.dataset.index);
+    const touch = event.touches[0];
+    this.dragFrom = index;
+    this.dragStartY = touch.clientY;
+    this.dragClientY = touch.clientY;
+    this.slotRects = null;
+    this.setData({ dragIndex: index, dragDy: 0, insertAt: index, insertTop: -1000 });
+    this.measureSlots();
+  },
+
+  dragMove(event) {
+    if (this.data.dragIndex < 0) {
+      return;
+    }
+    const touch = event.touches[0];
+    this.dragClientY = touch.clientY;
+    this.setData({ dragDy: touch.clientY - this.dragStartY });
+    this.updateInsert(touch.clientY);
+  },
+
+  /** 手指在哪两张卡片之间，就在那里画一条插入线（松手才真正换位置）。 */
+  updateInsert(clientY) {
+    const rects = this.slotRects;
+    if (!rects || !rects.length) {
+      return;
+    }
+    let at = rects.length;
+    for (let i = 0; i < rects.length; i += 1) {
+      if (clientY < rects[i].top + rects[i].height / 2) {
+        at = i;
+        break;
+      }
+    }
+    const top = at >= rects.length ? rects[rects.length - 1].bottom : rects[at].top;
+    this.setData({ insertAt: at, insertTop: top - 3 });
+  },
+
+  dragEnd() {
+    const from = this.dragFrom;
+    const at = this.data.insertAt;
+    this.dragFrom = -1;
+    this.slotRects = null;
+    this.setData({ dragIndex: -1, dragDy: 0, insertAt: -1 });
+    if (from < 0 || at < 0) {
+      return;
+    }
+    const to = Math.max(0, Math.min(this.data.cards.length - 1, at > from ? at - 1 : at));
+    if (to !== from) {
+      this.saveCards(homeCards.moveCard(this.cardState, from, to));
+      wx.vibrateShort({ type: "light", fail() {} });
+    }
+  },
+
+  /* ---------------- 今天的课 ---------------- */
+
+  openTimetable() {
+    if (this.data.editing) {
+      return;
+    }
+    wx.navigateTo({ url: "/pages/timetable/index" });
+  },
+
+  async refreshLesson() {
+    if (!(this.data.cards || []).some((item) => item.key === "lesson")) {
+      return;
+    }
+    const brief = await app.call("timetableBrief");
+    if (!brief || !brief.ok) {
+      return;
+    }
+    this.setData({ lesson: this.buildLesson(brief) });
+  },
+
+  buildLesson(brief) {
+    if (!brief.built) {
+      return { mode: "empty", label: "今天的课", title: "还没有课程表", sub: "点这里把课表建起来" };
+    }
+    const label = `今天 · 周${weekdayChar(brief.today)}`;
+    const holiday = festivals.holidayOf(brief.today);
+    if (holiday && holiday.type === "holiday") {
+      return { mode: "holiday", label, title: holiday.name, sub: "放假，不上课" };
+    }
+    if (holiday && holiday.type === "workday") {
+      // 调休上班日：只加一个小标签，课程内容照常显示。
+      return this.buildLessonDay(brief, label, `${holiday.name}调休上班`);
+    }
+    return this.buildLessonDay(brief, label, "");
+  },
+
+  buildLessonDay(brief, label, tag) {
+    if (brief.state === "home") {
+      return { mode: "home", label, title: "这周回家", sub: "不上课，好好休息", tag };
+    }
+    const side = brief.remain ? `还有 ${brief.remain} 节` : "";
+    const preview = (brief.preview || []).map((item) => ({ start: item.start, text: item.text }));
+    // 时间和内容分开给，界面上才不会被读成 16:50:26。
+    if (brief.current) {
+      return {
+        mode: "now",
+        label,
+        tag,
+        badge: "上课中",
+        clock: brief.current.start,
+        text: brief.current.text,
+        name: brief.current.name || "",
+        side,
+        preview,
+      };
+    }
+    if (brief.next) {
+      return {
+        mode: "next",
+        label,
+        tag,
+        focus: "下一节",
+        clock: brief.next.start,
+        text: brief.next.text,
+        name: brief.next.name || "",
+        side,
+        preview,
+      };
+    }
+    const tomorrow = brief.tomorrowFirst;
+    return {
+      mode: brief.count ? "done" : "idle",
+      label,
+      tag,
+      focus: brief.count ? "今天上完了" : "今天没课",
+      clock: tomorrow ? tomorrow.start : "",
+      text: tomorrow ? tomorrow.text : "",
+      name: tomorrow ? "明天第一节" : "接下来几天没课",
+      side: "",
+      preview: [],
+    };
+  },
+
   holdTemp() {
+    if (this.data.editing) return;
     this.setData({ skyPreview: true }, () => this.scheduleSkyMeasure());
   },
 
   pickSky(event) {
+    if (this.data.editing) return;
     const key = event.currentTarget.dataset.key;
-    let detail = { kind: key, windy: false, heavy: false };
-    if (key === "heavy") detail = { kind: "rain", windy: false, heavy: true };
-    if (key === "wind") detail = { kind: "cloud", windy: true, heavy: false };
-    detail.night = !!this.data.skyNight;
+    const detail = this.skyDetailOf(key, this.data.skyPhasePick);
     this.previewSpec = detail;
     this.setData({ skyPicked: key, skyOn: true }, () => this.syncCardSky());
     this.triggerEvent("preview", detail);
   },
 
-  toggleNight() {
-    const skyNight = !this.data.skyNight;
-    const key = this.data.skyPicked;
-    let detail = null;
-    if (key) {
-      detail = { kind: key, windy: false, heavy: false, night: skyNight };
-      if (key === "heavy") detail = { kind: "rain", windy: false, heavy: true, night: skyNight };
-      if (key === "wind") detail = { kind: "cloud", windy: true, heavy: false, night: skyNight };
-    } else {
-      const real = this.currentWeather || {};
-      detail = {
-        kind: real.kind || "sun",
-        windy: !!real.windy,
-        heavy: !!real.heavy,
-        night: skyNight,
-      };
-    }
+  /** 锁一个天色，八种天气在这个天色下逐个看。 */
+  pickPhase(event) {
+    if (this.data.editing) return;
+    const phase = event.currentTarget.dataset.key;
+    const next = this.data.skyPhasePick === phase ? "" : phase;
+    const detail = this.skyDetailOf(this.data.skyPicked, next);
     this.previewSpec = detail;
-    this.setData({ skyNight, skyPreview: true, skyOn: true }, () => this.syncCardSky());
-    this.triggerEvent("preview", key ? detail : { nightOnly: true, night: skyNight });
+    this.setData({ skyPhasePick: next, skyPreview: true, skyOn: true }, () => this.syncCardSky());
+    this.triggerEvent("preview", detail);
+  },
+
+  /** 选中的天气加上锁定的天色，组成这一帧要画的天空。 */
+  skyDetailOf(key, phase) {
+    if (!key) {
+      const real = this.currentWeather || {};
+      return { kind: real.kind || "sun", windy: !!real.windy, heavy: !!real.heavy, phase: phase || "" };
+    }
+    if (key === "heavy") return { kind: "rain", windy: false, heavy: true, phase: phase || "" };
+    if (key === "wind") return { kind: "cloud", windy: true, heavy: false, phase: phase || "" };
+    return { kind: key, windy: false, heavy: false, phase: phase || "" };
   },
 
   restoreSky() {
+    if (this.data.editing) return;
     this.previewSpec = null;
-    this.setData({ skyPreview: false, skyPicked: "", skyNight: false }, () => this.syncCardSky());
+    this.setData({ skyPreview: false, skyPicked: "", skyPhasePick: "" }, () => this.syncCardSky());
     this.triggerEvent("preview", { restore: true });
   },
 
@@ -441,19 +701,15 @@ Component({
 
   /**
    * 每小时配一个“天色”，图标才能按时段换：夜里月亮、日出日落时半落的太阳。
-   * 优先用云函数给的 item.hour；老数据没有钟点，就从“晚上七点”这样的标签倒推。
    */
   timeTonedHours(hours, weather) {
     const list = hours || [];
     const rise = this.sunClock(weather.sunrise);
     const set = this.sunClock(weather.sunset);
-    const nowPhase = skyMoment(new Date(), weather.sunrise || "", weather.sunset || "").phase;
     return list.map((item) => {
-      const hour = typeof item.hour === "number" ? item.hour : this.labelHour(item.label);
+      const hour = item.hour;
       let tone = "";
-      if (hour === null) {
-        tone = nowPhase === "night" ? "night" : "";
-      } else if (rise !== null && set !== null && set > rise) {
+      if (rise !== null && set !== null && set > rise) {
         if (hour + 1 <= rise || hour >= set + 1) tone = "night";
         else if (hour < rise + 0.5) tone = "dawn";
         else if (hour + 1 > set - 0.5) tone = "dusk";
@@ -466,21 +722,6 @@ Component({
       }
       return { ...item, tone };
     });
-  },
-
-  /** “晚上七点” → 19，“现在” → 当前钟点，认不出来就是 null。 */
-  labelHour(label) {
-    const text = String(label || "");
-    if (text === "现在") return new Date().getHours();
-    if (text === "凌晨") return 0;
-    if (text === "中午") return 12;
-    const matched = text.match(/^(凌晨|上午|下午|晚上)([一两二三四五六七八九十]{1,2})点$/);
-    if (!matched) return null;
-    const index = ["一", "两", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"].indexOf(matched[2]);
-    if (index < 0) return null;
-    const hour = index + 1;
-    if (matched[1] === "凌晨" || matched[1] === "上午") return hour;
-    return hour === 12 ? 12 : hour + 12;
   },
 
   sunClock(text) {
@@ -612,7 +853,7 @@ Component({
   },
 
   async refreshWeather() {
-    if (this.data.refreshing) {
+    if (this.data.refreshing || this.data.editing) {
       return;
     }
     this.setData({ refreshing: true });
@@ -631,11 +872,6 @@ Component({
     wx.navigateTo({ url: "/pages/settings/index" });
   },
 
-  openSoon(event) {
-    const name = event.currentTarget.dataset.name;
-    wx.navigateTo({ url: `/pages/soon/index?name=${encodeURIComponent(name)}` });
-  },
-
   /** 天空铺满整张天气卡片，字浮在上面；容器滚动时整块一起走。 */
   syncCardSky() {
     const real = this.currentWeather || {};
@@ -648,19 +884,20 @@ Component({
     }
     const windy = preview ? !!preview.windy : !!real.windy;
     const heavy = preview ? !!preview.heavy : !!real.heavy || kind === "storm";
-    const night = preview ? !!preview.night : false;
     const moment = skyMoment(new Date(), real.sunrise || "", real.sunset || "");
     const moon = moonMoment(new Date(), real.moonrise || "", real.moonset || "");
-    const phase = night ? "night" : moment.phase;
+    const locked = preview && preview.phase ? preview.phase : "";
+    const phase = locked || moment.phase;
+    const place = locked ? previewPlace(locked) : { sunX: moment.sunX, sunY: moment.sunY, moonX: moon.x, moonY: moon.y };
     this.cardFocus = {
       kind,
       windy,
       heavy,
       phase,
-      sunX: moment.sunX,
-      sunY: Math.min(0.34, Math.max(0.08, moment.sunY)),
-      moonX: moon.x,
-      moonY: Math.min(0.34, Math.max(0.06, moon.y)),
+      sunX: place.sunX,
+      sunY: Math.min(0.34, Math.max(0.08, place.sunY)),
+      moonX: place.moonX,
+      moonY: Math.min(0.34, Math.max(0.06, place.moonY)),
       moonPhase: moonPhaseKey(real.moonPhase || "", new Date()),
     };
     const colors = skyColors(kind, phase);
@@ -838,12 +1075,14 @@ Component({
   },
 
   onSkyTouchStart(event) {
+    if (this.data.editing) return;
     const touch = event.touches && event.touches[0];
     if (!touch) return;
     this.skyTouch = { x: touch.clientX, y: touch.clientY, moved: 0 };
   },
 
   onSkyTouchMove(event) {
+    if (this.data.editing) return;
     const touch = event.touches && event.touches[0];
     const start = this.skyTouch;
     if (!touch || !start) return;

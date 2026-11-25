@@ -215,6 +215,17 @@
   background: #e9899a;
 }
 
+.weather-card.sky-on .sky-phase {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+
+.weather-card.sky-on .sky-phase.on {
+  background: #e9899a;
+  border-color: #e9899a;
+}
+
 .weather-card.sky-on .sky-back {
   background: transparent;
   border: 2rpx solid rgba(255, 255, 255, 0.6);
@@ -274,6 +285,22 @@
 
 .sky-choice.on {
   background: #e9899a;
+  color: #fff;
+}
+
+/* 天色是一排开关，用描边和天气区分开 */
+.sky-phase {
+  padding: 6rpx 18rpx 8rpx;
+  border-radius: 999rpx;
+  background: transparent;
+  border: 2rpx solid rgba(233, 137, 154, 0.5);
+  color: #8a3d48;
+  font-size: 24rpx;
+}
+
+.sky-phase.on {
+  background: #e9899a;
+  border-color: #e9899a;
   color: #fff;
 }
 
@@ -350,13 +377,6 @@
   top: 0;
 }
 
-.weather .temp {
-  font-size: 72rpx;
-  font-weight: 600;
-  line-height: 1.1;
-  color: #5c463f;
-}
-
 .ai-badge {
   display: inline-block;
   background: #5c463f;
@@ -398,22 +418,6 @@
   display: flex;
   gap: 20rpx;
   align-items: flex-start;
-}
-
-.grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-}
-
-.entry {
-  width: calc(50% - 8rpx);
-  background: #fffaf8;
-  border-radius: 28rpx;
-  padding: 28rpx;
-  box-sizing: border-box;
-  box-shadow: 0 8rpx 28rpx rgba(227, 154, 168, 0.12);
-  transition: transform 0.2s ease;
 }
 
 .locate {
@@ -478,4 +482,275 @@
   font-size: 30rpx;
   line-height: 80rpx;
   text-align: center;
+}
+
+/* ---------- 首页卡片管理 ---------- */
+.page-editing {
+  padding-bottom: 160rpx;
+}
+
+.edit-guide {
+  color: #a08b84;
+  font-size: 24rpx;
+  text-align: center;
+  padding: 4rpx 0 16rpx;
+}
+
+.slot {
+  position: relative;
+}
+
+.slot.is-editing {
+  padding: 10rpx 10rpx 2rpx;
+  border: 1rpx dashed #e6c8cd;
+  border-radius: 32rpx;
+}
+
+.slot.is-editing .card {
+  margin-bottom: 12rpx;
+}
+
+.slot.is-dragging {
+  z-index: 6;
+}
+
+.slot.is-dragging .card {
+  box-shadow: 0 18rpx 36rpx rgba(227, 154, 168, 0.38);
+}
+
+.slot-tools {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 0 6rpx 10rpx;
+}
+
+.slot-grip {
+  width: 68rpx;
+  height: 58rpx;
+  line-height: 58rpx;
+  text-align: center;
+  color: #8a3d48;
+  background: #fff7f4;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+}
+
+.slot-name {
+  flex: 1;
+  font-size: 26rpx;
+  color: #a08b84;
+}
+
+.slot-remove {
+  width: 68rpx;
+  height: 58rpx;
+  line-height: 58rpx;
+  text-align: center;
+  color: #b8566a;
+  background: #ffeef1;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+}
+
+.insert-line {
+  position: fixed;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: #e9899a;
+  z-index: 70;
+  box-shadow: 0 0 12rpx rgba(233, 137, 154, 0.8);
+}
+
+.edit-bar {
+  position: fixed;
+  left: 32rpx;
+  right: 32rpx;
+  z-index: 75;
+  display: flex;
+  gap: 20rpx;
+}
+
+.edit-btn {
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  background: #e9899a;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 10rpx 24rpx rgba(227, 154, 168, 0.35);
+}
+
+.edit-btn.ghost {
+  background: #fffaf8;
+  color: #8a3d48;
+  border: 2rpx solid #f0cdd4;
+}
+
+.empty-cards {
+  text-align: center;
+  padding: 140rpx 0;
+}
+
+.chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.chip {
+  width: 48%;
+  box-sizing: border-box;
+  background: #fff7f4;
+  border-radius: 20rpx;
+  padding: 18rpx 20rpx;
+}
+
+.chip-name {
+  font-size: 28rpx;
+  color: #5c463f;
+  font-weight: 600;
+}
+
+.chip-desc {
+  font-size: 22rpx;
+  color: #a08b84;
+  margin-top: 6rpx;
+  line-height: 1.4;
+}
+
+/* ---------- 今天的课 ---------- */
+.lesson-card {
+  border: 2rpx solid transparent;
+}
+
+.lesson-card.mode-now {
+  border-color: #f3c3cd;
+  box-shadow: 0 10rpx 30rpx rgba(233, 137, 154, 0.24);
+}
+
+.lesson-top {
+  margin-bottom: 10rpx;
+}
+
+.lesson-day {
+  font-size: 24rpx;
+  color: #a08b84;
+}
+
+.lesson-side {
+  font-size: 24rpx;
+  color: #8a3d48;
+}
+
+.lesson-headline {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #5c463f;
+  line-height: 1.35;
+}
+
+.lesson-badge {
+  display: inline-block;
+  margin-right: 12rpx;
+  padding: 0 14rpx;
+  line-height: 40rpx;
+  border-radius: 999rpx;
+  background: #e9899a;
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 600;
+  vertical-align: 4rpx;
+}
+
+.lesson-focus {
+  margin-right: 12rpx;
+  font-size: 26rpx;
+  color: #a8787f;
+}
+
+.lesson-clock {
+  display: inline-block;
+  margin-right: 12rpx;
+  padding: 0 12rpx;
+  line-height: 34rpx;
+  border-radius: 8rpx;
+  background: #f2e0e4;
+  color: #8a3d48;
+  font-size: 26rpx;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  vertical-align: 3rpx;
+}
+
+.lesson-text {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #5c463f;
+}
+
+.lesson-meta {
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: #a08b84;
+}
+
+.lesson-foot {
+  margin-top: 14rpx;
+  align-items: center;
+}
+
+.lesson-tail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 24rpx;
+}
+
+.tail-clock {
+  margin-right: 6rpx;
+  color: #a08b84;
+  font-variant-numeric: tabular-nums;
+}
+
+.tail-text {
+  color: #8a3d48;
+  font-weight: 600;
+}
+
+.tail-dot {
+  margin: 0 12rpx;
+  color: #dcc3c9;
+}
+
+.lesson-more {
+  margin-left: auto;
+  font-size: 24rpx;
+  color: #a08b84;
+}
+.card-manage {
+  position: absolute;
+  right: 26rpx;
+  top: 24rpx;
+  font-size: 22rpx;
+  color: #bda7a1;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  background: #fff7f4;
+}
+.lesson-tag {
+  display: inline-block;
+  margin-bottom: 8rpx;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+  background: #f3e6e9;
+  color: #8a3d48;
+  font-size: 22rpx;
+}
+
+.lesson-card.mode-holiday .lesson-headline {
+  color: #b8566a;
 }

@@ -1,0 +1,124 @@
+<view class="page">
+  <view class="head">
+    <view>
+      <view class="page-title">课程表</view>
+      <view class="muted" wx:if="{{built}}">{{mine ? '我的课表' : 'TA 的课表，两个人一起用'}}</view>
+    </view>
+    <view class="head-btn" bindtap="openSettings">{{built ? '编辑' : '去设置'}}</view>
+  </view>
+
+  <block wx:if="{{built}}">
+    <view class="week-row" wx:if="{{cycleText}}" bindtap="tapWeekState">
+      <view class="week-state {{state === 'home' ? 'is-home' : ''}}">本周{{state === 'home' ? '回家' : '上课'}}</view>
+      <view class="week-cycle">{{cycleText}}</view>
+      <view class="week-more">切换 ›</view>
+    </view>
+    <view class="week-row" wx:else>
+      <view class="week-state {{state === 'home' ? 'is-home' : ''}}">本周{{state === 'home' ? '回家' : '上课'}}</view>
+    </view>
+
+    <view class="week-banner" wx:if="{{state === 'home'}}">这周回家，好好休息</view>
+    <view class="holiday-banner" wx:if="{{weekHoliday}}">{{weekHoliday}}</view>
+
+    <view class="board {{state === 'home' ? 'is-faded' : ''}}">
+      <view class="grid-row is-head">
+        <view class="grid-time"></view>
+        <view class="grid-cells">
+          <view
+            class="cell-head {{item.isToday ? 'is-today' : ''}} {{item.weekend ? 'is-weekend' : ''}} {{index === 5 ? 'gap-before' : ''}}"
+            wx:for="{{days}}"
+            wx:key="day"
+          >
+            <view class="head-char">{{item.char}}</view>
+            <view class="head-date">{{item.date}}</view>
+            <view class="head-flag {{item.rest ? 'rest' : 'work'}}" wx:if="{{item.rest || item.work}}">{{item.rest ? '休' : '班'}}</view>
+          </view>
+        </view>
+        <view class="grid-time is-right" wx:if="{{weekendDiffers}}"></view>
+      </view>
+
+      <block wx:for="{{rows}}" wx:key="key">
+        <view class="grid-group" wx:if="{{item.type === 'group'}}">{{item.name}}</view>
+        <view class="grid-row" wx:else>
+          <view class="grid-time">
+            <view class="grid-clock">{{item.start}}</view>
+            <view class="grid-period">{{item.name}}</view>
+          </view>
+          <view class="grid-cells">
+            <view
+              class="cell {{cell.disabled ? 'is-off' : (cell.empty ? 'is-empty' : 'tone-' + cell.tone)}} {{cell.isToday ? 'is-today' : ''}} {{index === 5 ? 'gap-before' : ''}}"
+              wx:for="{{item.cells}}"
+              wx:for-item="cell"
+              wx:key="day"
+              data-day="{{cell.day}}"
+              data-period="{{cell.period}}"
+              bindtap="openCell"
+            >
+              <view class="cell-text" wx:if="{{!cell.disabled}}">{{cell.text}}</view>
+            </view>
+          </view>
+          <view class="grid-time is-right" wx:if="{{weekendDiffers}}">
+            <view class="grid-clock">{{item.weekStart}}</view>
+            <view class="grid-period">{{item.weekName}}</view>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <view class="empty-hint" wx:if="{{!hasLesson}}">还没填课，点任意格子写上就行</view>
+    <view class="muted tip">点格子写内容，学生写科目、老师写班级都行；节次和时间不对，点右上角「编辑」</view>
+    <view class="tip" wx:if="{{hiddenGroups.length}}">
+      <text class="tip-dim">整周没课已收起：</text>
+      <text
+        class="tip-link"
+        wx:for="{{hiddenGroups}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="showGroup"
+      >{{item.name}} </text>
+    </view>
+    <view class="muted tip" wx:if="{{hintText}}">{{hintText}}</view>
+  </block>
+
+  <view class="empty" wx:elif="{{!loading}}">
+    <view class="empty-title">还没有课程表</view>
+    <view class="muted">第一步：先在设置里排好每天的节次和时间，点「保存」</view>
+    <view class="muted">第二步：回课表点任意格子，写上什么课或哪个班</view>
+    <view class="btn" bindtap="openSettings">开始设置</view>
+  </view>
+
+  <view class="mask" wx:if="{{editOpen}}" bindtap="closeCell">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">{{editTitle}}</view>
+      <input
+        class="field"
+        placeholder="写什么都行，比如 语文 / 25班 / 305"
+        placeholder-class="field-placeholder"
+        maxlength="20"
+        value="{{form.text}}"
+        bindinput="onText"
+      />
+      <view class="tone-range" wx:if="{{form.text && toneShared}}">
+        <view class="range-item {{toneScope === 'cell' ? 'on' : ''}}" data-scope="cell" bindtap="pickScope">只改这一格</view>
+        <view class="range-item {{toneScope === 'all' ? 'on' : ''}}" data-scope="all" bindtap="pickScope">所有同名的</view>
+      </view>
+      <view class="tones" wx:if="{{form.text}}">
+        <view
+          class="tone-dot tone-{{item}}"
+          wx:for="{{tones}}"
+          wx:key="*this"
+          data-tone="{{item}}"
+          bindtap="pickTone"
+        >
+          <view class="tone-check" wx:if="{{form.tone === item}}"></view>
+        </view>
+      </view>
+      <view class="muted sheet-hint">空着就是这一节没课。同样的字自动同色，点色点能改。</view>
+      <view class="sheet-actions">
+        <view class="sheet-btn ghost" bindtap="closeCell">取消</view>
+        <view class="sheet-btn danger" wx:if="{{!editEmpty}}" bindtap="clearCell">清空</view>
+        <view class="sheet-btn" bindtap="saveCell">保存</view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -55,14 +55,22 @@ App({
     if (this.globalData.session && !force) {
       return this.globalData.session;
     }
-    const result = await this.call("session");
-    if (result.ok) {
-      this.globalData.session = result;
+    if (this.pendingSession) {
+      return this.pendingSession;
     }
-    return result;
+    // 同一时刻只发一次 session，几个面板同时打开时不会各建一条用户资料。
+    this.pendingSession = this.call("session").then((result) => {
+      this.pendingSession = null;
+      if (result.ok) {
+        this.globalData.session = result;
+      }
+      return result;
+    });
+    return this.pendingSession;
   },
 
   clearSession() {
     this.globalData.session = null;
+    this.pendingSession = null;
   },
 });

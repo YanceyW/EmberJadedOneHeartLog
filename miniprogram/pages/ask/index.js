@@ -1,5 +1,6 @@
 const app = getApp();
 const { getTabClearance, watchTabClearance } = require("../../utils/layout");
+const { defaultRemind } = require("../../utils/remind");
 
 function dayText(date) {
   if (!date) {
@@ -196,6 +197,7 @@ Component({
           question,
           answer: result.answer,
           shown: "",
+          proposal: result.proposal || null,
         };
         this.setData({ messages: next, writing: true, scrollInto: "end" });
         this.typeAnswer(index, result.answer);
@@ -230,6 +232,41 @@ Component({
       if (this.data.writing) {
         this.setData({ writing: false });
       }
+    },
+
+    async confirmProposal(event) {
+      const index = Number(event.currentTarget.dataset.index);
+      const message = this.data.messages[index];
+      if (!message || !message.proposal || message.proposalDone) {
+        return;
+      }
+      const proposal = message.proposal;
+      const result = await app.call("saveSchedule", {
+        title: proposal.title,
+        date: proposal.date,
+        note: proposal.note || "",
+        visibility: "both",
+        remind: defaultRemind(1),
+      });
+      if (!result.ok) {
+        wx.showToast({ title: result.message, icon: "none" });
+        return;
+      }
+      app.globalData.session = result;
+      const messages = this.data.messages.slice();
+      messages[index] = { ...messages[index], proposalDone: true, proposalSkipped: false };
+      this.setData({ messages });
+      wx.showToast({ title: "已记到日程", icon: "none" });
+    },
+
+    dismissProposal(event) {
+      const index = Number(event.currentTarget.dataset.index);
+      const messages = this.data.messages.slice();
+      if (!messages[index] || !messages[index].proposal) {
+        return;
+      }
+      messages[index] = { ...messages[index], proposalDone: true, proposalSkipped: true };
+      this.setData({ messages });
     },
 
     openSettings() {
